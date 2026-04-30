@@ -1,0 +1,52 @@
+name: openclaw_remote
+description: OpenClaw Room Control Panel
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  provider: ^6.1.2
+
+  # MQTT
+  mqtt_client: ^10.2.1
+
+  # HTTP requests to OpenClaw
+  http: ^1.2.0
+
+  # BLE for direct ESP32 connection
+  flutter_blue_plus: ^1.31.15
+
+  # Keep screen always on
+  wakelock_plus: ^1.1.4
+
+  # Persistent settings storage
+  shared_preferences: ^2.2.3
+
+  # Microphone for clap + intimacy mode
+  noise_meter: ^5.0.1
+
+  # Runtime permissions
+  permission_handler: ^11.3.1
+
+  # Date/time formatting
+  intl: ^0.19.0
+
+  # Background foreground service (clap detection always-on)
+  flutter_foreground_task: ^8.10.0
+
+  # Google fonts (sci-fi look)
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
