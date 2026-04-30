@@ -135,15 +135,17 @@ class MqttService {
     _client!.updates?.listen((List<MqttReceivedMessage<MqttMessage>> events) {
       for (final event in events) {
         final msg = event.payload as MqttPublishMessage;
-        final payload = MqttPublishPayload.bytesToStringAsString(
-            msg.payload.message);
+        final payload =
+            MqttPublishPayload.bytesToStringAsString(msg.payload.message);
         onMessage?.call(event.topic, payload);
       }
     });
   }
 
   void publish(String topic, String payload, {bool retain = false}) {
-    if (_client?.connectionStatus?.state != MqttConnectionState.connected) return;
+    if (_client?.connectionStatus?.state != MqttConnectionState.connected) {
+      return;
+    }
     final builder = MqttClientPayloadBuilder();
     builder.addString(payload);
     _client!.publishMessage(

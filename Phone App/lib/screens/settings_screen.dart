@@ -1,10 +1,14 @@
-// lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
+
 import '../models/app_settings.dart';
-import '../providers/settings_provider.dart';
 import '../providers/device_provider.dart';
+import '../providers/settings_provider.dart';
 import '../theme.dart';
+import '../widgets/settings_row.dart';
+import '../widgets/time_picker_sheet.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -15,343 +19,700 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late AppSettings _draft;
+  late TextEditingController _brokerController;
+  late TextEditingController _portController;
+  late TextEditingController _usernameController;
+  late TextEditingController _passwordController;
+  late TextEditingController _openclawController;
+  late TextEditingController _bleController;
+
+  bool _showPassword = false;
+  bool _advancedExpanded = false;
+  bool _topicsExpanded = false;
   bool _dirty = false;
 
   @override
   void initState() {
     super.initState();
-    final sp = context.read<SettingsProvider>();
-    _draft = AppSettings.fromJson(sp.settings.toJson());
+    final settings = context.read<SettingsProvider>().settings;
+    _draft = AppSettings.fromJson(settings.toJson());
+    _brokerController = TextEditingController(text: _draft.mqttBroker);
+    _portController = TextEditingController(text: _draft.mqttPort.toString());
+    _usernameController = TextEditingController(text: _draft.mqttUsername);
+    _passwordController = TextEditingController(text: _draft.mqttPassword);
+    _openclawController = TextEditingController(text: _draft.openclawBaseUrl);
+    _bleController = TextEditingController(text: _draft.bleDeviceName);
   }
 
-  void _save() async {
-    final sp = context.read<SettingsProvider>();
-    final dp = context.read<DeviceProvider>();
-    await sp.save(_draft);
-    await dp.updateSettings(_draft);
+  @override
+  void dispose() {
+    _brokerController.dispose();
+    _portController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _openclawController.dispose();
+    _bleController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final settingsProvider = context.read<SettingsProvider>();
+    final deviceProvider = context.read<DeviceProvider>();
+    await settingsProvider.save(_draft);
+    await deviceProvider.updateSettings(_draft);
+    if (!mounted) {
+      return;
+    }
     setState(() => _dirty = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Settings saved'),
-        backgroundColor: AppTheme.accentDim,
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('SETTINGS SAVED'),
         duration: Duration(seconds: 2),
-      ));
+      ),
+    );
+  }
+
+  void _markDirty() {
+    if (!_dirty) {
+      setState(() => _dirty = true);
     }
   }
 
-  void _change(VoidCallback fn) {
-    setState(() { fn(); _dirty = true; });
+  Future<void> _pickTime(
+    String title,
+    int hour,
+    int minute,
+    void Function(int hour, int minute) onSelected,
+  ) async {
+    final result = await showTimePickerSheet(
+      context,
+      title: title,
+      initialTime: TimeOfDay(hour: hour, minute: minute),
+    );
+    if (result == null || !mounted) {
+      return;
+    }
+    setState(() {
+      onSelected(result.hour, result.minute);
+      _dirty = true;
+    });
+  }
+
+  Future<void> _pickNumber({
+    required String title,
+    required int initial,
+    required int min,
+    required int max,
+    required ValueChanged<int> onSelected,
+    String? suffix,
+  }) async {
+    final result = await showNumericPickerSheet(
+      context,
+      title: title,
+      initialValue: initial,
+      min: min,
+      max: max,
+      suffix: suffix,
+    );
+    if (result == null || !mounted) {
+      return;
+    }
+    setState(() {
+      onSelected(result);
+      _dirty = true;
+    });
+  }
+
+  String _formatTime(int hour, int minute) =>
+      '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+
+  double get _clapSensitivityPercent =>
+      ((_draft.clapDbThreshold / 30).clamp(0, 1) * 100).toDouble();
+
+  set _clapSensitivityPercent(double value) {
+    _draft.clapDbThreshold = ((value / 100) * 30).clamp(0, 30);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bg,
-      appBar: AppBar(
-        title: const Text('SETTINGS'),
-        actions: [
-          if (_dirty)
-            TextButton(
-              onPressed: _save,
-              child: const Text('SAVE',
-                  style: TextStyle(color: AppTheme.accent, letterSpacing: 1)),
-            ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: [
-          // ── MQTT ──────────────────────────────────────
-          _section('MQTT BROKER'),
-          _textField('Broker IP / Hostname', _draft.mqttBroker,
-              (v) => _change(() => _draft.mqttBroker = v)),
-          _numberField('Port', _draft.mqttPort,
-              (v) => _change(() => _draft.mqttPort = v)),
-          _textField('Username (optional)', _draft.mqttUsername,
-              (v) => _change(() => _draft.mqttUsername = v)),
-          _textField('Password (optional)', _draft.mqttPassword,
-              (v) => _change(() => _draft.mqttPassword = v),
-              obscure: true),
-          _toggle('Use TLS', _draft.mqttUseTls,
-              (v) => _change(() => _draft.mqttUseTls = v)),
-
-          // ── OpenClaw ──────────────────────────────────
-          _section('OPENCLAW HTTP'),
-          _textField('Base URL (e.g. http://192.168.1.5:8000)',
-              _draft.openclawBaseUrl,
-              (v) => _change(() => _draft.openclawBaseUrl = v)),
-
-          // ── BLE ───────────────────────────────────────
-          _section('BLUETOOTH (BLE)'),
-          _textField('ESP32 Device Name', _draft.bleDeviceName,
-              (v) => _change(() => _draft.bleDeviceName = v)),
-
-          // ── MQTT Topics ───────────────────────────────
-          _section('MQTT TOPICS'),
-          _textField('Fan', _draft.topicFan,
-              (v) => _change(() => _draft.topicFan = v)),
-          _textField('Main Light', _draft.topicLight,
-              (v) => _change(() => _draft.topicLight = v)),
-          _textField('Socket', _draft.topicSocket,
-              (v) => _change(() => _draft.topicSocket = v)),
-          _textField('RGB Toggle', _draft.topicRgb,
-              (v) => _change(() => _draft.topicRgb = v)),
-          _textField('RGB Brightness', _draft.topicRgbBrightness,
-              (v) => _change(() => _draft.topicRgbBrightness = v)),
-          _textField('Backup Brightness', _draft.topicBackupBrightness,
-              (v) => _change(() => _draft.topicBackupBrightness = v)),
-          _textField('Smoke Sensor', _draft.topicSmoke,
-              (v) => _change(() => _draft.topicSmoke = v)),
-          _textField('Lux Sensor', _draft.topicLux,
-              (v) => _change(() => _draft.topicLux = v)),
-          _textField('Presence Sensor', _draft.topicPresence,
-              (v) => _change(() => _draft.topicPresence = v)),
-          _textField('State Sync (from OpenClaw)', _draft.topicStateSync,
-              (v) => _change(() => _draft.topicStateSync = v)),
-
-          // ── Night Mode ────────────────────────────────
-          _section('NIGHT MODE'),
-          _timeField('Night Starts', _draft.nightStartHour, _draft.nightStartMinute,
-              (h, m) => _change(() { _draft.nightStartHour = h; _draft.nightStartMinute = m; })),
-          _timeField('Night Ends', _draft.nightEndHour, _draft.nightEndMinute,
-              (h, m) => _change(() { _draft.nightEndHour = h; _draft.nightEndMinute = m; })),
-          _doubleField('Lux Night Threshold', _draft.luxNightThreshold,
-              (v) => _change(() => _draft.luxNightThreshold = v),
-              hint: 'Below this lux = night'),
-
-          // ── Sleep Detection ───────────────────────────
-          _section('SLEEP DETECTION'),
-          _numberField('Lights Off For (mins) = Sleeping',
-              _draft.sleepDetectionMinutes,
-              (v) => _change(() => _draft.sleepDetectionMinutes = v)),
-          _doubleField('MQ-2 Sleep Threshold', _draft.mq2SleepThreshold,
-              (v) => _change(() => _draft.mq2SleepThreshold = v),
-              hint: 'Elevated CO2 = person breathing in room'),
-          _numberField('No Presence For (mins) = Away',
-              _draft.presenceAbsenceMinutes,
-              (v) => _change(() => _draft.presenceAbsenceMinutes = v)),
-
-          // ── Wake-up ───────────────────────────────────
-          _section('WAKE-UP ROUTINE'),
-          _timeField('Wake-up Time', _draft.wakeUpHour, _draft.wakeUpMinute,
-              (h, m) => _change(() { _draft.wakeUpHour = h; _draft.wakeUpMinute = m; })),
-          _numberField('PWM Ramp Start (mins before wake)',
-              _draft.wakeUpRampMinutes,
-              (v) => _change(() => _draft.wakeUpRampMinutes = v)),
-
-          // ── Smoke Alarm ───────────────────────────────
-          _section('SMOKE ALARM'),
-          _doubleField('Smoke Alarm Threshold (ppm)', _draft.smokeAlarmThreshold,
-              (v) => _change(() => _draft.smokeAlarmThreshold = v)),
-
-          // ── UI ────────────────────────────────────────
-          _section('INTERFACE'),
-          _numberField('Idle Timeout (seconds)', _draft.idleTimeoutSeconds,
-              (v) => _change(() => _draft.idleTimeoutSeconds = v)),
-
-          // ── Clap ──────────────────────────────────────
-          _section('CLAP DETECTION'),
-          _doubleField('Clap dB Threshold (above avg)', _draft.clapDbThreshold,
-              (v) => _change(() => _draft.clapDbThreshold = v),
-              hint: 'Spike above rolling average to count as clap'),
-          _numberField('Double-clap Window (ms)', _draft.clapWindowMs,
-              (v) => _change(() => _draft.clapWindowMs = v)),
-
-          const SizedBox(height: 40),
-
-          // ── Save Button ───────────────────────────────
-          ElevatedButton(
-            onPressed: _save,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.accent,
-              foregroundColor: AppTheme.bg,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('SAVE SETTINGS',
-                style: TextStyle(
-                    fontWeight: FontWeight.w800, letterSpacing: 2)),
-          ),
-          const SizedBox(height: 60),
-        ],
-      ),
-    );
-  }
-
-  Widget _section(String label) => Padding(
-        padding: const EdgeInsets.only(top: 24, bottom: 8),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: AppTheme.accent,
-            fontSize: 10,
-            letterSpacing: 2.5,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      );
-
-  Widget _textField(String label, String value, ValueChanged<String> onChanged,
-      {bool obscure = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: TextFormField(
-        initialValue: value,
-        obscureText: obscure,
-        onChanged: onChanged,
-        style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(color: AppTheme.textSecond, fontSize: 12),
-          filled: true,
-          fillColor: AppTheme.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppTheme.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppTheme.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppTheme.accent),
-          ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        ),
-      ),
-    );
-  }
-
-  Widget _numberField(
-      String label, int value, ValueChanged<int> onChanged) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: TextFormField(
-        initialValue: value.toString(),
-        keyboardType: TextInputType.number,
-        onChanged: (v) {
-          final parsed = int.tryParse(v);
-          if (parsed != null) onChanged(parsed);
-        },
-        style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(color: AppTheme.textSecond, fontSize: 12),
-          filled: true,
-          fillColor: AppTheme.surface,
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.border)),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.border)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.accent)),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        ),
-      ),
-    );
-  }
-
-  Widget _doubleField(
-      String label, double value, ValueChanged<double> onChanged,
-      {String? hint}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: TextFormField(
-        initialValue: value.toString(),
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        onChanged: (v) {
-          final parsed = double.tryParse(v);
-          if (parsed != null) onChanged(parsed);
-        },
-        style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          hintStyle: const TextStyle(color: AppTheme.textDim, fontSize: 11),
-          labelStyle: const TextStyle(color: AppTheme.textSecond, fontSize: 12),
-          filled: true,
-          fillColor: AppTheme.surface,
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.border)),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.border)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.accent)),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        ),
-      ),
-    );
-  }
-
-  Widget _toggle(String label, bool value, ValueChanged<bool> onChanged) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        children: [
-          Text(label,
-              style: const TextStyle(
-                  color: AppTheme.textSecond, fontSize: 13)),
-          const Spacer(),
-          Switch(value: value, onChanged: onChanged),
-        ],
-      ),
-    );
-  }
-
-  Widget _timeField(String label, int hour, int minute,
-      void Function(int h, int m) onChanged) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Text(label,
-              style: const TextStyle(
-                  color: AppTheme.textSecond, fontSize: 13)),
-          const Spacer(),
-          GestureDetector(
-            onTap: () async {
-              final picked = await showTimePicker(
-                context: context,
-                initialTime: TimeOfDay(hour: hour, minute: minute),
-                builder: (ctx, child) => Theme(
-                  data: ThemeData.dark().copyWith(
-                    colorScheme: const ColorScheme.dark(primary: AppTheme.accent),
-                  ),
-                  child: child!,
+      backgroundColor: AppColors.black,
+      body: SafeArea(
+        child: CustomScrollView(
+          physics: const ClampingScrollPhysics(),
+          slivers: [
+            SliverPadding(
+              padding: AppSpace.pagePadding,
+              sliver: SliverList(
+                delegate: SliverChildListDelegate(
+                  [
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).pop(),
+                          behavior: HitTestBehavior.opaque,
+                          child: Text(
+                            '← SETTINGS',
+                            style: AppTextStyles.labelLG(
+                              color: AppColors.white90,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          kUiVersion,
+                          style: AppTextStyles.labelSM(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpace.lg),
+                    const Divider(
+                        color: AppColors.white20, thickness: 1, height: 1),
+                    const SizedBox(height: AppSpace.xl),
+                    const _SectionHeader(title: 'MQTT.CONFIG'),
+                    SettingsRow(
+                      label: 'BROKER',
+                      trailing: _buildTextField(
+                        controller: _brokerController,
+                        onChanged: (value) {
+                          _draft.mqttBroker = value;
+                          _markDirty();
+                        },
+                      ),
+                    ),
+                    SettingsRow(
+                      label: 'PORT',
+                      trailing: _buildTextField(
+                        controller: _portController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
+                        onChanged: (value) {
+                          final parsed = int.tryParse(value);
+                          if (parsed != null) {
+                            _draft.mqttPort = parsed;
+                            _markDirty();
+                          }
+                        },
+                      ),
+                    ),
+                    SettingsRow(
+                      label: 'USERNAME',
+                      trailing: _buildTextField(
+                        controller: _usernameController,
+                        onChanged: (value) {
+                          _draft.mqttUsername = value;
+                          _markDirty();
+                        },
+                      ),
+                    ),
+                    SettingsRow(
+                      label: 'PASSWORD',
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 160,
+                            child: _buildTextField(
+                              controller: _passwordController,
+                              obscureText: !_showPassword,
+                              onChanged: (value) {
+                                _draft.mqttPassword = value;
+                                _markDirty();
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() => _showPassword = !_showPassword);
+                            },
+                            behavior: HitTestBehavior.opaque,
+                            child: Icon(
+                              _showPassword
+                                  ? Symbols.visibility_off
+                                  : Symbols.visibility,
+                              size: 18,
+                              color: AppColors.white40,
+                              fill: 0,
+                              weight: 300,
+                              opticalSize: 24,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.xl),
+                    const _SectionHeader(title: 'NETWORK.CONFIG'),
+                    SettingsRow(
+                      label: 'OPENCLAW URL',
+                      trailing: _buildTextField(
+                        controller: _openclawController,
+                        onChanged: (value) {
+                          _draft.openclawBaseUrl = value;
+                          _markDirty();
+                        },
+                      ),
+                    ),
+                    SettingsRow(
+                      label: 'ESP32 BLE NAME',
+                      trailing: _buildTextField(
+                        controller: _bleController,
+                        onChanged: (value) {
+                          _draft.bleDeviceName = value;
+                          _markDirty();
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.xl),
+                    const _SectionHeader(title: 'AUTOMATION'),
+                    SettingsRow(
+                      label: 'WAKE-UP TIME',
+                      onTap: () => _pickTime(
+                        'WAKE-UP TIME',
+                        _draft.wakeUpHour,
+                        _draft.wakeUpMinute,
+                        (hour, minute) {
+                          _draft.wakeUpHour = hour;
+                          _draft.wakeUpMinute = minute;
+                        },
+                      ),
+                      trailing: _buildTapValue(_formatTime(
+                        _draft.wakeUpHour,
+                        _draft.wakeUpMinute,
+                      )),
+                    ),
+                    SettingsRow(
+                      label: 'NIGHT MODE START',
+                      onTap: () => _pickTime(
+                        'NIGHT MODE START',
+                        _draft.nightStartHour,
+                        _draft.nightStartMinute,
+                        (hour, minute) {
+                          _draft.nightStartHour = hour;
+                          _draft.nightStartMinute = minute;
+                        },
+                      ),
+                      trailing: _buildTapValue(_formatTime(
+                        _draft.nightStartHour,
+                        _draft.nightStartMinute,
+                      )),
+                    ),
+                    SettingsRow(
+                      label: 'NIGHT MODE END',
+                      onTap: () => _pickTime(
+                        'NIGHT MODE END',
+                        _draft.nightEndHour,
+                        _draft.nightEndMinute,
+                        (hour, minute) {
+                          _draft.nightEndHour = hour;
+                          _draft.nightEndMinute = minute;
+                        },
+                      ),
+                      trailing: _buildTapValue(_formatTime(
+                        _draft.nightEndHour,
+                        _draft.nightEndMinute,
+                      )),
+                    ),
+                    SettingsRow(
+                      label: 'LUX THRESHOLD',
+                      onTap: () => _pickNumber(
+                        title: 'LUX THRESHOLD',
+                        initial: _draft.luxNightThreshold.round(),
+                        min: 0,
+                        max: 2000,
+                        onSelected: (value) =>
+                            _draft.luxNightThreshold = value.toDouble(),
+                      ),
+                      trailing: _buildTapValue(
+                        _draft.luxNightThreshold.round().toString(),
+                      ),
+                    ),
+                    SettingsRow(
+                      label: 'PRESENCE TIMEOUT',
+                      onTap: () => _pickNumber(
+                        title: 'PRESENCE TIMEOUT',
+                        initial: _draft.presenceAbsenceMinutes,
+                        min: 1,
+                        max: 60,
+                        onSelected: (value) =>
+                            _draft.presenceAbsenceMinutes = value,
+                        suffix: ' MIN',
+                      ),
+                      trailing: _buildTapValue(
+                        '${_draft.presenceAbsenceMinutes} MIN',
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.xl),
+                    const _SectionHeader(title: 'SLEEP.DETECTION'),
+                    SettingsRow(
+                      label: 'LIGHTS-OFF TIMER',
+                      onTap: () => _pickNumber(
+                        title: 'LIGHTS-OFF TIMER',
+                        initial: _draft.sleepDetectionMinutes,
+                        min: 1,
+                        max: 60,
+                        onSelected: (value) =>
+                            _draft.sleepDetectionMinutes = value,
+                        suffix: ' MIN',
+                      ),
+                      trailing: _buildTapValue(
+                        '${_draft.sleepDetectionMinutes} MIN',
+                      ),
+                    ),
+                    SettingsRow(
+                      label: 'SMOKE THRESHOLD',
+                      onTap: () => _pickNumber(
+                        title: 'SMOKE THRESHOLD',
+                        initial: _draft.smokeAlarmThreshold.round(),
+                        min: 0,
+                        max: 4095,
+                        onSelected: (value) =>
+                            _draft.smokeAlarmThreshold = value.toDouble(),
+                      ),
+                      trailing: _buildTapValue(
+                        _draft.smokeAlarmThreshold.round().toString(),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.xl),
+                    const _SectionHeader(title: 'ADVANCED'),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() => _advancedExpanded = !_advancedExpanded);
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          children: [
+                            Text(
+                              _advancedExpanded ? 'COLLAPSE' : 'EXPAND',
+                              style: AppTextStyles.labelSM(
+                                color: AppColors.white60,
+                              ),
+                            ),
+                            const Spacer(),
+                            Icon(
+                              _advancedExpanded
+                                  ? Symbols.expand_less
+                                  : Symbols.expand_more,
+                              size: 18,
+                              color: AppColors.white40,
+                              fill: 0,
+                              weight: 300,
+                              opticalSize: 24,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    AnimatedCrossFade(
+                      duration: const Duration(milliseconds: 200),
+                      crossFadeState: _advancedExpanded
+                          ? CrossFadeState.showSecond
+                          : CrossFadeState.showFirst,
+                      firstChild: const SizedBox.shrink(),
+                      secondChild: Column(
+                        children: [
+                          SettingsRow(
+                            label: 'CLAP SENSITIVITY',
+                            trailing: SizedBox(
+                              width: 180,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Slider(
+                                    value: _clapSensitivityPercent,
+                                    min: 0,
+                                    max: 100,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _clapSensitivityPercent = value;
+                                        _dirty = true;
+                                      });
+                                    },
+                                  ),
+                                  Text(
+                                    '${_clapSensitivityPercent.round()}%',
+                                    style: AppTextStyles.bodyLG(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SettingsRow(
+                            label: 'IDLE TIMEOUT',
+                            onTap: () => _pickNumber(
+                              title: 'IDLE TIMEOUT',
+                              initial: _draft.idleTimeoutSeconds,
+                              min: 10,
+                              max: 300,
+                              onSelected: (value) =>
+                                  _draft.idleTimeoutSeconds = value,
+                              suffix: ' SEC',
+                            ),
+                            trailing: _buildTapValue(
+                              '${_draft.idleTimeoutSeconds} SEC',
+                            ),
+                          ),
+                          SettingsRow(
+                            label: 'WAKE-UP RAMP',
+                            onTap: () => _pickNumber(
+                              title: 'WAKE-UP RAMP',
+                              initial: _draft.wakeUpRampMinutes,
+                              min: 1,
+                              max: 120,
+                              onSelected: (value) =>
+                                  _draft.wakeUpRampMinutes = value,
+                              suffix: ' MIN',
+                            ),
+                            trailing: _buildTapValue(
+                              '${_draft.wakeUpRampMinutes} MIN',
+                            ),
+                          ),
+                          SettingsRow(
+                            label: 'MQ2 THRESHOLD',
+                            onTap: () => _pickNumber(
+                              title: 'MQ2 THRESHOLD',
+                              initial: _draft.mq2SleepThreshold.round(),
+                              min: 0,
+                              max: 2000,
+                              onSelected: (value) =>
+                                  _draft.mq2SleepThreshold = value.toDouble(),
+                            ),
+                            trailing: _buildTapValue(
+                              _draft.mq2SleepThreshold.round().toString(),
+                            ),
+                          ),
+                          SettingsRow(
+                            label: 'MQTT TLS',
+                            onTap: () {
+                              setState(() {
+                                _draft.mqttUseTls = !_draft.mqttUseTls;
+                                _dirty = true;
+                              });
+                            },
+                            trailing: _buildTapValue(
+                              _draft.mqttUseTls ? 'ENABLED' : 'DISABLED',
+                            ),
+                          ),
+                          SettingsRow(
+                            label: 'CLAP WINDOW',
+                            onTap: () => _pickNumber(
+                              title: 'CLAP WINDOW',
+                              initial: _draft.clapWindowMs,
+                              min: 300,
+                              max: 3000,
+                              onSelected: (value) =>
+                                  _draft.clapWindowMs = value,
+                              suffix: ' MS',
+                            ),
+                            trailing:
+                                _buildTapValue('${_draft.clapWindowMs} MS'),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              setState(
+                                  () => _topicsExpanded = !_topicsExpanded);
+                            },
+                            behavior: HitTestBehavior.opaque,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    'MQTT.TOPICS',
+                                    style: AppTextStyles.labelLG(),
+                                  ),
+                                  const Spacer(),
+                                  Icon(
+                                    _topicsExpanded
+                                        ? Symbols.expand_less
+                                        : Symbols.expand_more,
+                                    size: 18,
+                                    color: AppColors.white40,
+                                    fill: 0,
+                                    weight: 300,
+                                    opticalSize: 24,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          AnimatedCrossFade(
+                            duration: const Duration(milliseconds: 200),
+                            crossFadeState: _topicsExpanded
+                                ? CrossFadeState.showSecond
+                                : CrossFadeState.showFirst,
+                            firstChild: const SizedBox.shrink(),
+                            secondChild: Column(
+                              children: [
+                                _TopicValue(
+                                    label: 'FAN', value: _draft.topicFan),
+                                _TopicValue(
+                                    label: 'LIGHT', value: _draft.topicLight),
+                                _TopicValue(
+                                    label: 'SOCKET', value: _draft.topicSocket),
+                                _TopicValue(
+                                    label: 'RGB', value: _draft.topicRgb),
+                                _TopicValue(
+                                  label: 'RGB BRIGHTNESS',
+                                  value: _draft.topicRgbBrightness,
+                                ),
+                                _TopicValue(
+                                  label: 'BACKUP BRIGHTNESS',
+                                  value: _draft.topicBackupBrightness,
+                                ),
+                                _TopicValue(
+                                    label: 'SMOKE', value: _draft.topicSmoke),
+                                _TopicValue(
+                                    label: 'LUX', value: _draft.topicLux),
+                                _TopicValue(
+                                  label: 'PRESENCE',
+                                  value: _draft.topicPresence,
+                                ),
+                                _TopicValue(
+                                  label: 'STATE SYNC',
+                                  value: _draft.topicStateSync,
+                                ),
+                                _TopicValue(
+                                  label: 'WAKEUP DONE',
+                                  value: _draft.topicWakeupDone,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.xxl),
+                    GestureDetector(
+                      onTap: _save,
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        width: double.infinity,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          border:
+                              Border.all(color: AppColors.white60, width: 1),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'SAVE SETTINGS',
+                          style: AppTextStyles.labelLG(
+                            color: AppColors.white90,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.xl),
+                  ],
                 ),
-              );
-              if (picked != null) {
-                onChanged(picked.hour, picked.minute);
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppTheme.surface,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.border),
-              ),
-              child: Text(
-                '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}',
-                style: const TextStyle(
-                    color: AppTheme.accent,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required ValueChanged<String> onChanged,
+    bool obscureText = false,
+    TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+  }) {
+    return SizedBox(
+      width: 180,
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        style: AppTextStyles.bodyLG(),
+        textAlign: TextAlign.right,
+        cursorColor: AppColors.white90,
+        cursorWidth: 1,
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          hintText: obscureText ? '••••••' : '—',
+          hintStyle: AppTextStyles.bodyLG(color: AppColors.white20),
+          isDense: true,
+          contentPadding: EdgeInsets.zero,
+        ),
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _buildTapValue(String value) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          style: AppTextStyles.bodyLG(),
+        ),
+        const SizedBox(width: 8),
+        const Icon(
+          Symbols.chevron_right,
+          size: 16,
+          color: AppColors.white40,
+          fill: 0,
+          weight: 300,
+          opticalSize: 24,
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(title.toUpperCase(), style: AppTextStyles.labelLG()),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: SizedBox(
+            height: 1,
+            child: DecoratedBox(
+              decoration: BoxDecoration(color: AppColors.white20),
+            ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TopicValue extends StatelessWidget {
+  const _TopicValue({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsRow(
+      label: label,
+      trailing: SizedBox(
+        width: 180,
+        child: Text(
+          value,
+          textAlign: TextAlign.right,
+          style: AppTextStyles.bodyLG(color: AppColors.white60),
+        ),
       ),
     );
   }

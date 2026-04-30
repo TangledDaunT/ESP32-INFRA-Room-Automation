@@ -1,7 +1,7 @@
 // lib/providers/device_provider.dart
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import '../models/app_settings.dart';
 import '../models/device_state.dart';
@@ -111,7 +111,8 @@ class DeviceProvider extends ChangeNotifier {
     // Check OpenClaw
     final ok = await _openclaw.checkConnection();
     _updateState(_state.copyWith(
-      openclawStatus: ok ? ConnectionStatus.connected : ConnectionStatus.disconnected,
+      openclawStatus:
+          ok ? ConnectionStatus.connected : ConnectionStatus.disconnected,
     ));
     if (ok) {
       _openclaw.startPolling();
@@ -201,10 +202,14 @@ class DeviceProvider extends ChangeNotifier {
       _updateState(_state.copyWith(rgbOn: payload.toUpperCase() == 'ON'));
     } else if (topic == s.topicRgbBrightness) {
       final b = int.tryParse(payload);
-      if (b != null) _updateState(_state.copyWith(rgbBrightness: b.clamp(0, 255)));
+      if (b != null) {
+        _updateState(_state.copyWith(rgbBrightness: b.clamp(0, 255)));
+      }
     } else if (topic == s.topicBackupBrightness) {
       final b = int.tryParse(payload);
-      if (b != null) _updateState(_state.copyWith(backupBrightness: b.clamp(0, 255)));
+      if (b != null) {
+        _updateState(_state.copyWith(backupBrightness: b.clamp(0, 255)));
+      }
     } else if (topic == s.topicSmoke) {
       final v = double.tryParse(payload);
       if (v != null) {
@@ -219,7 +224,9 @@ class DeviceProvider extends ChangeNotifier {
         _checkSleepConditions();
       }
     } else if (topic == s.topicPresence) {
-      final present = payload.toUpperCase() == 'PRESENT' || payload == '1' || payload == 'true';
+      final present = payload.toUpperCase() == 'PRESENT' ||
+          payload == '1' ||
+          payload == 'true';
       _updateState(_state.copyWith(presenceDetected: present));
       _checkSleepConditions();
     } else if (topic == s.topicStateSync) {
@@ -244,7 +251,8 @@ class DeviceProvider extends ChangeNotifier {
         backupBrightness: data['backup_brightness'] ?? _state.backupBrightness,
         smokeValue: (data['smoke'] ?? _state.smokeValue).toDouble(),
         luxValue: (data['lux'] ?? _state.luxValue).toDouble(),
-        presenceDetected: data['presence'] == true || data['presence'] == 'PRESENT',
+        presenceDetected:
+            data['presence'] == true || data['presence'] == 'PRESENT',
       ));
     } catch (_) {}
   }
@@ -285,10 +293,12 @@ class DeviceProvider extends ChangeNotifier {
       // Night behavior
       if (_state.anyLightOn) {
         // Lights are on → turn them all off slowly (RGB fade then main off)
-        _slowFadeRgb(target: 0, onComplete: () {
-          setRgb(false);
-          setLight(false);
-        });
+        _slowFadeRgb(
+            target: 0,
+            onComplete: () {
+              setRgb(false);
+              setLight(false);
+            });
       } else {
         // Lights are off → slowly turn on RGB strip only to 50%
         setRgb(true);
@@ -322,7 +332,8 @@ class DeviceProvider extends ChangeNotifier {
 
     _rampTimer = Timer.periodic(Duration(milliseconds: stepMs), (t) {
       step++;
-      final brightness = (from + ((to - from) * (step / steps))).round().clamp(0, 255);
+      final brightness =
+          (from + ((to - from) * (step / steps))).round().clamp(0, 255);
       setRgbBrightness(brightness);
       if (step >= steps) {
         t.cancel();
@@ -368,12 +379,14 @@ class DeviceProvider extends ChangeNotifier {
     if (!_intimacyMode) return;
 
     // Exponential moving average for smooth response
-    _smoothedDb = _smoothedDb * (1 - _intimacySmoothing) + db * _intimacySmoothing;
+    _smoothedDb =
+        _smoothedDb * (1 - _intimacySmoothing) + db * _intimacySmoothing;
 
     // Map 40dB (quiet) → 90dB (loud) to brightness 20 → 255
     const double minDb = 40.0;
     const double maxDb = 90.0;
-    final normalized = ((_smoothedDb - minDb) / (maxDb - minDb)).clamp(0.0, 1.0);
+    final normalized =
+        ((_smoothedDb - minDb) / (maxDb - minDb)).clamp(0.0, 1.0);
     final brightness = (normalized * 235 + 20).round().clamp(20, 255);
 
     setRgbBrightness(brightness);

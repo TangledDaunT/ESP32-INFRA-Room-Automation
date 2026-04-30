@@ -1,6 +1,7 @@
 // lib/models/device_state.dart
 
 enum SleepState { awake, nightMode, possiblySleeping, sleeping, wakingUp }
+
 enum ConnectionStatus { disconnected, connecting, connected, error }
 
 class DeviceState {
@@ -9,8 +10,8 @@ class DeviceState {
   bool lightOn;
   bool socketOn;
   bool rgbOn;
-  int rgbBrightness;      // 0–255
-  int backupBrightness;   // 0–255
+  int rgbBrightness; // 0–255
+  int backupBrightness; // 0–255
 
   // ── Sensor Readings ───────────────────────────────────
   double smokeValue;

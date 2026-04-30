@@ -1,309 +1,240 @@
-// lib/screens/idle_screen.dart
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
-import '../models/device_state.dart';
+
 import '../providers/device_provider.dart';
 import '../theme.dart';
-import '../widgets/sensor_card.dart';
+import '../widgets/lux_dial.dart';
 
 class IdleScreen extends StatefulWidget {
-  final VoidCallback onWake;
-  const IdleScreen({super.key, required this.onWake});
+  const IdleScreen({super.key});
 
   @override
   State<IdleScreen> createState() => _IdleScreenState();
 }
 
-class _IdleScreenState extends State<IdleScreen>
-    with TickerProviderStateMixin {
+class _IdleScreenState extends State<IdleScreen> {
   late Timer _clockTimer;
-  late AnimationController _fadeIn;
-  late AnimationController _scanLine;
   DateTime _now = DateTime.now();
+  bool _wakeFlash = false;
+  bool _navigating = false;
 
   @override
   void initState() {
     super.initState();
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _now = DateTime.now());
+      if (mounted) {
+        setState(() => _now = DateTime.now());
+      }
     });
-
-    _fadeIn = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..forward();
-
-    _scanLine = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat();
   }
 
   @override
   void dispose() {
     _clockTimer.cancel();
-    _fadeIn.dispose();
-    _scanLine.dispose();
     super.dispose();
+  }
+
+  Future<void> _wakeToControl() async {
+    if (_navigating) {
+      return;
+    }
+    setState(() {
+      _wakeFlash = true;
+      _navigating = true;
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    if (!mounted) {
+      return;
+    }
+    setState(() => _wakeFlash = false);
+    await Navigator.of(context).pushNamed('/control');
+    if (mounted) {
+      setState(() => _navigating = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final device = context.watch<DeviceProvider>();
-    final state = device.state;
-    final size = MediaQuery.of(context).size;
+    final state = context.watch<DeviceProvider>().state;
+    final dateText =
+        DateFormat('EEEE, MMMM d, yyyy').format(_now).toUpperCase();
+    final hourMinute = DateFormat('HH:mm').format(_now);
+    final secondText = DateFormat('ss').format(_now);
 
-    return GestureDetector(
-      onTap: widget.onWake,
-      onPanDown: (_) => widget.onWake(),
-      child: FadeTransition(
-        opacity: _fadeIn,
-        child: Container(
-          color: AppTheme.bg,
-          child: Stack(
-            children: [
-              // ── Scan line effect ──────────────────────
-              AnimatedBuilder(
-                animation: _scanLine,
-                builder: (_, __) => Positioned(
-                  top: _scanLine.value * size.height - 2,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 2,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppTheme.accent.withOpacity(0),
-                          AppTheme.accent.withOpacity(0.15),
-                          AppTheme.accent.withOpacity(0),
+    return Scaffold(
+      backgroundColor: AppColors.black,
+      body: GestureDetector(
+        onTap: _wakeToControl,
+        behavior: HitTestBehavior.opaque,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            SafeArea(
+              child: Padding(
+                padding: AppSpace.pagePadding,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            flex: 5,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      Text(
+                                        hourMinute,
+                                        style: AppTextStyles.tabular(
+                                          AppTextStyles.displayXL(),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      AnimatedSwitcher(
+                                        duration:
+                                            const Duration(milliseconds: 150),
+                                        switchInCurve: Curves.easeIn,
+                                        child: Text(
+                                          ':$secondText',
+                                          key: ValueKey<String>(secondText),
+                                          style: AppTextStyles.tabular(
+                                            AppTextStyles.displayXL(
+                                              color: AppColors.white40,
+                                            ).copyWith(fontSize: 36),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpace.sm),
+                                Text(
+                                  dateText,
+                                  style: AppTextStyles.labelLG(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppSpace.md),
+                          Expanded(
+                            flex: 4,
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(maxWidth: 220),
+                                child: LuxDial(luxValue: state.luxValue),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  ),
+                    _IdleNavBar(onWake: _wakeToControl),
+                  ],
                 ),
               ),
-
-              // ── Corner decorations ────────────────────
-              _cornerDecor(Alignment.topLeft),
-              _cornerDecor(Alignment.topRight, flip: true),
-              _cornerDecor(Alignment.bottomLeft, flipV: true),
-              _cornerDecor(Alignment.bottomRight, flip: true, flipV: true),
-
-              // ── Main content ──────────────────────────
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    children: [
-                      const Spacer(flex: 2),
-
-                      // ── Time ────────────────────────────
-                      Text(
-                        DateFormat('hh:mm').format(_now),
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 86,
-                          fontWeight: FontWeight.w200,
-                          letterSpacing: -2,
-                          height: 1,
-                        ),
-                      ),
-                      Text(
-                        DateFormat('ss').format(_now),
-                        style: TextStyle(
-                          color: AppTheme.accent.withOpacity(0.6),
-                          fontSize: 20,
-                          fontWeight: FontWeight.w300,
-                          letterSpacing: 4,
-                        ),
-                      ),
-
-                      // AM/PM
-                      Text(
-                        DateFormat('a').format(_now),
-                        style: TextStyle(
-                          color: AppTheme.textSecond,
-                          fontSize: 14,
-                          letterSpacing: 4,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // ── Date ────────────────────────────
-                      Text(
-                        DateFormat('EEEE, MMMM d yyyy').format(_now).toUpperCase(),
-                        style: TextStyle(
-                          color: AppTheme.textDim,
-                          fontSize: 11,
-                          letterSpacing: 2,
-                        ),
-                      ),
-
-                      const Spacer(flex: 1),
-
-                      // ── Status bar ───────────────────────
-                      _statusRow(state, device),
-
-                      const SizedBox(height: 16),
-
-                      // ── Sensor cards ──────────────────────
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SensorCard(
-                              label: 'SMOKE / MQ-2',
-                              value: state.smokeValue.toStringAsFixed(0),
-                              unit: 'ppm',
-                              icon: Icons.air,
-                              color: state.smokeAlarm
-                                  ? AppTheme.danger
-                                  : AppTheme.accent,
-                              alert: state.smokeAlarm,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: SensorCard(
-                              label: 'LUMINANCE',
-                              value: state.luxValue.toStringAsFixed(1),
-                              unit: 'lux',
-                              icon: Icons.wb_sunny_outlined,
-                              color: AppTheme.colorLight,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      PresenceCard(present: state.presenceDetected),
-
-                      const SizedBox(height: 10),
-
-                      // ── Sleep / Mode badge ────────────────
-                      _modeBadge(state),
-
-                      const Spacer(flex: 2),
-
-                      // ── Tap hint ─────────────────────────
-                      Text(
-                        'TAP ANYWHERE TO CONTROL',
-                        style: TextStyle(
-                          color: AppTheme.textDim,
-                          fontSize: 9,
-                          letterSpacing: 3,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
+            ),
+            IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: _wakeFlash ? 1 : 0,
+                duration: const Duration(milliseconds: 100),
+                child: Container(color: AppColors.white05),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _statusRow(state, DeviceProvider device) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        ConnectionDot(label: 'MQTT', connected: state.mqttOk),
-        const SizedBox(width: 16),
-        ConnectionDot(label: 'BLE', connected: state.bleOk),
-        const SizedBox(width: 16),
-        ConnectionDot(label: 'OPENCLAW', connected: state.openclawOk),
-      ],
-    );
-  }
-
-  Widget _modeBadge(state) {
-    String text;
-    Color color;
-    IconData icon;
-
-    switch (state.sleepState) {
-      case SleepState.sleeping:
-        text = 'SLEEP MODE';
-        color = AppTheme.accentDim;
-        icon = Icons.bedtime;
-        break;
-      case SleepState.nightMode:
-        text = 'NIGHT MODE';
-        color = AppTheme.colorRgb.withOpacity(0.8);
-        icon = Icons.nights_stay;
-        break;
-      case SleepState.wakingUp:
-        text = 'WAKE-UP ROUTINE';
-        color = AppTheme.colorLight;
-        icon = Icons.wb_twilight;
-        break;
-      default:
-        text = 'STANDBY';
-        color = AppTheme.textDim;
-        icon = Icons.radio_button_off;
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 12, color: color),
-        const SizedBox(width: 6),
-        Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 10,
-            letterSpacing: 2,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _cornerDecor(Alignment alignment, {bool flip = false, bool flipV = false}) {
-    return Align(
-      alignment: alignment,
-      child: Transform(
-        alignment: Alignment.center,
-        transform: Matrix4.diagonal3Values(flip ? -1 : 1, flipV ? -1 : 1, 1),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: SizedBox(
-            width: 30,
-            height: 30,
-            child: CustomPaint(painter: _CornerPainter()),
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _CornerPainter extends CustomPainter {
+class _IdleNavBar extends StatelessWidget {
+  const _IdleNavBar({required this.onWake});
+
+  final Future<void> Function() onWake;
+
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppTheme.accent.withOpacity(0.4)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    final path = Path()
-      ..moveTo(0, size.height)
-      ..lineTo(0, 0)
-      ..lineTo(size.width, 0);
-
-    canvas.drawPath(path, paint);
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpace.sm),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _IdleNavIcon(
+            icon: Symbols.settings,
+            onTap: () => Navigator.of(context).pushNamed('/settings'),
+          ),
+          const SizedBox(width: AppSpace.lg),
+          _IdleNavIcon(
+            icon: Symbols.brightness_medium,
+            active: true,
+            onTap: onWake,
+          ),
+          const SizedBox(width: AppSpace.lg),
+          const _IdleNavIcon(
+            icon: Symbols.blur_on,
+          ),
+        ],
+      ),
+    );
   }
+}
+
+class _IdleNavIcon extends StatelessWidget {
+  const _IdleNavIcon({
+    required this.icon,
+    this.active = false,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final bool active;
+  final VoidCallback? onTap;
 
   @override
-  bool shouldRepaint(_) => false;
+  Widget build(BuildContext context) {
+    final iconWidget = Icon(
+      icon,
+      size: 22,
+      color: active ? AppColors.white90 : AppColors.white40,
+      fill: active ? 1 : 0,
+      weight: active ? 400 : 300,
+      opticalSize: 24,
+    );
+
+    final child = active
+        ? Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.white10,
+              border: Border.all(color: AppColors.white20, width: 1),
+            ),
+            child: iconWidget,
+          )
+        : iconWidget;
+
+    if (onTap == null) {
+      return child;
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: child,
+    );
+  }
 }

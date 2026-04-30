@@ -11,7 +11,7 @@ class ClapService {
   StreamSubscription<NoiseReading>? _subscription;
 
   ClapCallback? onDoubleClap;
-  DbCallback? onDbUpdate;  // For intimacy mode
+  DbCallback? onDbUpdate; // For intimacy mode
 
   // ── Clap detection state ──────────────────────────────
   final List<double> _recentDb = [];
@@ -22,8 +22,8 @@ class ClapService {
   Timer? _clapResetTimer;
   bool _inCooldown = false;
 
-  double clapThreshold;   // dB above rolling average = clap
-  int clapWindowMs;       // Double-clap time window
+  double clapThreshold; // dB above rolling average = clap
+  int clapWindowMs; // Double-clap time window
 
   bool _isRunning = false;
 

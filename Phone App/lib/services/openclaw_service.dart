@@ -1,7 +1,7 @@
 // lib/services/openclaw_service.dart
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+
 import 'package:http/http.dart' as http;
 import '../models/app_settings.dart';
 import '../models/device_state.dart';
@@ -49,11 +49,13 @@ class OpenClawService {
 
   Future<bool> setDevice(String device, bool state) async {
     try {
-      final res = await http.post(
-        Uri.parse('$_base/control/$device'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'state': state ? 'ON' : 'OFF'}),
-      ).timeout(const Duration(seconds: 5));
+      final res = await http
+          .post(
+            Uri.parse('$_base/control/$device'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'state': state ? 'ON' : 'OFF'}),
+          )
+          .timeout(const Duration(seconds: 5));
       return res.statusCode == 200;
     } catch (_) {
       return false;
@@ -62,11 +64,13 @@ class OpenClawService {
 
   Future<bool> setBrightness(String device, int brightness) async {
     try {
-      final res = await http.post(
-        Uri.parse('$_base/control/$device/brightness'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'brightness': brightness}),
-      ).timeout(const Duration(seconds: 5));
+      final res = await http
+          .post(
+            Uri.parse('$_base/control/$device/brightness'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'brightness': brightness}),
+          )
+          .timeout(const Duration(seconds: 5));
       return res.statusCode == 200;
     } catch (_) {
       return false;
@@ -75,14 +79,16 @@ class OpenClawService {
 
   Future<bool> notifyWakeupDone() async {
     try {
-      final res = await http.post(
-        Uri.parse('$_base/wakeup/done'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'timestamp': DateTime.now().toIso8601String(),
-          'message': 'Wake-up routine complete from OpenClaw Remote',
-        }),
-      ).timeout(const Duration(seconds: 5));
+      final res = await http
+          .post(
+            Uri.parse('$_base/wakeup/done'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'timestamp': DateTime.now().toIso8601String(),
+              'message': 'Wake-up routine complete from OpenClaw Remote',
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
       return res.statusCode == 200;
     } catch (_) {
       return false;
@@ -91,11 +97,13 @@ class OpenClawService {
 
   Future<bool> notifySleepState(SleepState state) async {
     try {
-      final res = await http.post(
-        Uri.parse('$_base/sleep/state'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'state': state.name}),
-      ).timeout(const Duration(seconds: 5));
+      final res = await http
+          .post(
+            Uri.parse('$_base/sleep/state'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'state': state.name}),
+          )
+          .timeout(const Duration(seconds: 5));
       return res.statusCode == 200;
     } catch (_) {
       return false;
@@ -104,11 +112,13 @@ class OpenClawService {
 
   Future<bool> syncWakeUpTime(int hour, int minute) async {
     try {
-      final res = await http.post(
-        Uri.parse('$_base/settings/wakeup'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'hour': hour, 'minute': minute}),
-      ).timeout(const Duration(seconds: 5));
+      final res = await http
+          .post(
+            Uri.parse('$_base/settings/wakeup'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'hour': hour, 'minute': minute}),
+          )
+          .timeout(const Duration(seconds: 5));
       return res.statusCode == 200;
     } catch (_) {
       return false;

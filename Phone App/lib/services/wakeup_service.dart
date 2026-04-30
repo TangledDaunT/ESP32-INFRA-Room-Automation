@@ -9,10 +9,10 @@ typedef BrightnessCallback = void Function(int brightness);
 class WakeupService {
   AppSettings _settings;
 
-  BrightnessCallback? onRgbBrightness;   // Set RGB brightness during ramp
-  VoidCallback? onRgbOn;                 // Turn on RGB
-  VoidCallback? onLightOn;              // Turn on main light at wake time
-  VoidCallback? onWakeupComplete;       // Notify OpenClaw
+  BrightnessCallback? onRgbBrightness; // Set RGB brightness during ramp
+  VoidCallback? onRgbOn; // Turn on RGB
+  VoidCallback? onLightOn; // Turn on main light at wake time
+  VoidCallback? onWakeupComplete; // Notify OpenClaw
 
   Timer? _checkTimer;
   Timer? _rampTimer;
@@ -82,7 +82,9 @@ class WakeupService {
 
     _rampTimer = Timer.periodic(const Duration(seconds: 30), (t) {
       tick++;
-      final brightness = ((tick / totalTicks) * targetBrightness).round().clamp(0, targetBrightness);
+      final brightness = ((tick / totalTicks) * targetBrightness)
+          .round()
+          .clamp(0, targetBrightness);
       onRgbBrightness?.call(brightness);
 
       if (tick >= totalTicks) {

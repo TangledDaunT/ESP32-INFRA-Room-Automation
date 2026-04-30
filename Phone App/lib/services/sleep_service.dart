@@ -94,9 +94,8 @@ class SleepService {
 
     // ── Sleep detection ────────────────────────────────
     if (isNight && _currentPresence) {
-      final lightsOffMinutes = _lightsOffAt != null
-          ? now.difference(_lightsOffAt!).inMinutes
-          : 0;
+      final lightsOffMinutes =
+          _lightsOffAt != null ? now.difference(_lightsOffAt!).inMinutes : 0;
 
       // Conditions for sleeping:
       // 1. Lights have been off for sleepDetectionMinutes
@@ -131,7 +130,8 @@ class SleepService {
         _settings.nightEndHour * 60 + _settings.nightEndMinute;
 
     // Also check lux
-    final luxIsNight = _currentLux < _settings.luxNightThreshold && _currentLux > 0;
+    final luxIsNight =
+        _currentLux < _settings.luxNightThreshold && _currentLux > 0;
 
     // Night = (after nightStart OR before nightEnd) OR lux low
     bool timeNight;

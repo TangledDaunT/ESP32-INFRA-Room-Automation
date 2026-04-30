@@ -52,7 +52,6 @@ class BleService {
 
   BluetoothDevice? _device;
   BluetoothCharacteristic? _cmdChar;
-  BluetoothCharacteristic? _sensorChar;
   StreamSubscription? _scanSub;
   StreamSubscription? _sensorSub;
   StreamSubscription? _connSub;
@@ -123,7 +122,6 @@ class BleService {
             final uuid = char.uuid.toString().toLowerCase();
             if (uuid == _cmdCharUuid) _cmdChar = char;
             if (uuid == _sensorCharUuid) {
-              _sensorChar = char;
               await char.setNotifyValue(true);
               _sensorSub = char.onValueReceived.listen(_onSensorData);
             }
@@ -141,7 +139,8 @@ class BleService {
 
   void _onSensorData(List<int> data) {
     try {
-      final json = jsonDecode(String.fromCharCodes(data)) as Map<String, dynamic>;
+      final json =
+          jsonDecode(String.fromCharCodes(data)) as Map<String, dynamic>;
       onSensorData?.call(json);
     } catch (_) {}
   }
@@ -164,7 +163,6 @@ class BleService {
     _sensorSub?.cancel();
     _connSub?.cancel();
     _cmdChar = null;
-    _sensorChar = null;
     _connecting = false;
     _setStatus(ConnectionStatus.disconnected);
   }

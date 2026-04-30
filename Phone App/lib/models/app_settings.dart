@@ -26,19 +26,19 @@ class AppSettings {
   String topicLux;
   String topicPresence;
   String topicSleepStatus;
-  String topicStateSync;     // Full state JSON from OpenClaw
-  String topicWakeupDone;   // App → OpenClaw on wakeup complete
+  String topicStateSync; // Full state JSON from OpenClaw
+  String topicWakeupDone; // App → OpenClaw on wakeup complete
 
   // ── Night Mode ────────────────────────────────────────
-  int nightStartHour;    // 22 = 10 PM
+  int nightStartHour; // 22 = 10 PM
   int nightStartMinute;
-  int nightEndHour;      // 6 = 6 AM
+  int nightEndHour; // 6 = 6 AM
   int nightEndMinute;
   double luxNightThreshold; // below this = night
 
   // ── Sleep Detection ───────────────────────────────────
-  int sleepDetectionMinutes;  // lights off for X mins = sleeping
-  double mq2SleepThreshold;   // above this = someone in room breathing
+  int sleepDetectionMinutes; // lights off for X mins = sleeping
+  double mq2SleepThreshold; // above this = someone in room breathing
   int presenceAbsenceMinutes; // no presence for X mins = away
 
   // ── Wake-up Routine ───────────────────────────────────
@@ -53,8 +53,8 @@ class AppSettings {
   int idleTimeoutSeconds; // seconds before idle screen kicks in
 
   // ── Clap Detection ───────────────────────────────────
-  double clapDbThreshold;    // dB above average to count as clap
-  int clapWindowMs;          // ms window to detect double clap
+  double clapDbThreshold; // dB above average to count as clap
+  int clapWindowMs; // ms window to detect double clap
 
   AppSettings({
     this.mqttBroker = '192.168.1.100',
@@ -94,79 +94,82 @@ class AppSettings {
   });
 
   Map<String, dynamic> toJson() => {
-    'mqttBroker': mqttBroker,
-    'mqttPort': mqttPort,
-    'mqttUsername': mqttUsername,
-    'mqttPassword': mqttPassword,
-    'mqttUseTls': mqttUseTls,
-    'openclawBaseUrl': openclawBaseUrl,
-    'bleDeviceName': bleDeviceName,
-    'topicFan': topicFan,
-    'topicLight': topicLight,
-    'topicSocket': topicSocket,
-    'topicRgb': topicRgb,
-    'topicRgbBrightness': topicRgbBrightness,
-    'topicBackupBrightness': topicBackupBrightness,
-    'topicSmoke': topicSmoke,
-    'topicLux': topicLux,
-    'topicPresence': topicPresence,
-    'topicSleepStatus': topicSleepStatus,
-    'topicStateSync': topicStateSync,
-    'topicWakeupDone': topicWakeupDone,
-    'nightStartHour': nightStartHour,
-    'nightStartMinute': nightStartMinute,
-    'nightEndHour': nightEndHour,
-    'nightEndMinute': nightEndMinute,
-    'luxNightThreshold': luxNightThreshold,
-    'sleepDetectionMinutes': sleepDetectionMinutes,
-    'mq2SleepThreshold': mq2SleepThreshold,
-    'presenceAbsenceMinutes': presenceAbsenceMinutes,
-    'wakeUpHour': wakeUpHour,
-    'wakeUpMinute': wakeUpMinute,
-    'wakeUpRampMinutes': wakeUpRampMinutes,
-    'smokeAlarmThreshold': smokeAlarmThreshold,
-    'idleTimeoutSeconds': idleTimeoutSeconds,
-    'clapDbThreshold': clapDbThreshold,
-    'clapWindowMs': clapWindowMs,
-  };
+        'mqttBroker': mqttBroker,
+        'mqttPort': mqttPort,
+        'mqttUsername': mqttUsername,
+        'mqttPassword': mqttPassword,
+        'mqttUseTls': mqttUseTls,
+        'openclawBaseUrl': openclawBaseUrl,
+        'bleDeviceName': bleDeviceName,
+        'topicFan': topicFan,
+        'topicLight': topicLight,
+        'topicSocket': topicSocket,
+        'topicRgb': topicRgb,
+        'topicRgbBrightness': topicRgbBrightness,
+        'topicBackupBrightness': topicBackupBrightness,
+        'topicSmoke': topicSmoke,
+        'topicLux': topicLux,
+        'topicPresence': topicPresence,
+        'topicSleepStatus': topicSleepStatus,
+        'topicStateSync': topicStateSync,
+        'topicWakeupDone': topicWakeupDone,
+        'nightStartHour': nightStartHour,
+        'nightStartMinute': nightStartMinute,
+        'nightEndHour': nightEndHour,
+        'nightEndMinute': nightEndMinute,
+        'luxNightThreshold': luxNightThreshold,
+        'sleepDetectionMinutes': sleepDetectionMinutes,
+        'mq2SleepThreshold': mq2SleepThreshold,
+        'presenceAbsenceMinutes': presenceAbsenceMinutes,
+        'wakeUpHour': wakeUpHour,
+        'wakeUpMinute': wakeUpMinute,
+        'wakeUpRampMinutes': wakeUpRampMinutes,
+        'smokeAlarmThreshold': smokeAlarmThreshold,
+        'idleTimeoutSeconds': idleTimeoutSeconds,
+        'clapDbThreshold': clapDbThreshold,
+        'clapWindowMs': clapWindowMs,
+      };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
-    mqttBroker: json['mqttBroker'] ?? '192.168.1.100',
-    mqttPort: json['mqttPort'] ?? 1883,
-    mqttUsername: json['mqttUsername'] ?? '',
-    mqttPassword: json['mqttPassword'] ?? '',
-    mqttUseTls: json['mqttUseTls'] ?? false,
-    openclawBaseUrl: json['openclawBaseUrl'] ?? 'http://192.168.1.100:8000',
-    bleDeviceName: json['bleDeviceName'] ?? 'OpenClaw_ESP32',
-    topicFan: json['topicFan'] ?? 'openclaw/control/fan',
-    topicLight: json['topicLight'] ?? 'openclaw/control/light',
-    topicSocket: json['topicSocket'] ?? 'openclaw/control/socket',
-    topicRgb: json['topicRgb'] ?? 'openclaw/control/rgb',
-    topicRgbBrightness: json['topicRgbBrightness'] ?? 'openclaw/control/rgb/brightness',
-    topicBackupBrightness: json['topicBackupBrightness'] ?? 'openclaw/control/backup/brightness',
-    topicSmoke: json['topicSmoke'] ?? 'openclaw/sensors/smoke',
-    topicLux: json['topicLux'] ?? 'openclaw/sensors/lux',
-    topicPresence: json['topicPresence'] ?? 'openclaw/sensors/presence',
-    topicSleepStatus: json['topicSleepStatus'] ?? 'openclaw/status/sleep',
-    topicStateSync: json['topicStateSync'] ?? 'openclaw/state',
-    topicWakeupDone: json['topicWakeupDone'] ?? 'openclaw/wakeup/done',
-    nightStartHour: json['nightStartHour'] ?? 22,
-    nightStartMinute: json['nightStartMinute'] ?? 0,
-    nightEndHour: json['nightEndHour'] ?? 6,
-    nightEndMinute: json['nightEndMinute'] ?? 0,
-    luxNightThreshold: (json['luxNightThreshold'] ?? 50.0).toDouble(),
-    sleepDetectionMinutes: json['sleepDetectionMinutes'] ?? 30,
-    mq2SleepThreshold: (json['mq2SleepThreshold'] ?? 200.0).toDouble(),
-    presenceAbsenceMinutes: json['presenceAbsenceMinutes'] ?? 5,
-    wakeUpHour: json['wakeUpHour'] ?? 7,
-    wakeUpMinute: json['wakeUpMinute'] ?? 0,
-    wakeUpRampMinutes: json['wakeUpRampMinutes'] ?? 30,
-    smokeAlarmThreshold: (json['smokeAlarmThreshold'] ?? 600.0).toDouble(),
-    idleTimeoutSeconds: json['idleTimeoutSeconds'] ?? 30,
-    clapDbThreshold: (json['clapDbThreshold'] ?? 15.0).toDouble(),
-    clapWindowMs: json['clapWindowMs'] ?? 1500,
-  );
+        mqttBroker: json['mqttBroker'] ?? '192.168.1.100',
+        mqttPort: json['mqttPort'] ?? 1883,
+        mqttUsername: json['mqttUsername'] ?? '',
+        mqttPassword: json['mqttPassword'] ?? '',
+        mqttUseTls: json['mqttUseTls'] ?? false,
+        openclawBaseUrl: json['openclawBaseUrl'] ?? 'http://192.168.1.100:8000',
+        bleDeviceName: json['bleDeviceName'] ?? 'OpenClaw_ESP32',
+        topicFan: json['topicFan'] ?? 'openclaw/control/fan',
+        topicLight: json['topicLight'] ?? 'openclaw/control/light',
+        topicSocket: json['topicSocket'] ?? 'openclaw/control/socket',
+        topicRgb: json['topicRgb'] ?? 'openclaw/control/rgb',
+        topicRgbBrightness:
+            json['topicRgbBrightness'] ?? 'openclaw/control/rgb/brightness',
+        topicBackupBrightness: json['topicBackupBrightness'] ??
+            'openclaw/control/backup/brightness',
+        topicSmoke: json['topicSmoke'] ?? 'openclaw/sensors/smoke',
+        topicLux: json['topicLux'] ?? 'openclaw/sensors/lux',
+        topicPresence: json['topicPresence'] ?? 'openclaw/sensors/presence',
+        topicSleepStatus: json['topicSleepStatus'] ?? 'openclaw/status/sleep',
+        topicStateSync: json['topicStateSync'] ?? 'openclaw/state',
+        topicWakeupDone: json['topicWakeupDone'] ?? 'openclaw/wakeup/done',
+        nightStartHour: json['nightStartHour'] ?? 22,
+        nightStartMinute: json['nightStartMinute'] ?? 0,
+        nightEndHour: json['nightEndHour'] ?? 6,
+        nightEndMinute: json['nightEndMinute'] ?? 0,
+        luxNightThreshold: (json['luxNightThreshold'] ?? 50.0).toDouble(),
+        sleepDetectionMinutes: json['sleepDetectionMinutes'] ?? 30,
+        mq2SleepThreshold: (json['mq2SleepThreshold'] ?? 200.0).toDouble(),
+        presenceAbsenceMinutes: json['presenceAbsenceMinutes'] ?? 5,
+        wakeUpHour: json['wakeUpHour'] ?? 7,
+        wakeUpMinute: json['wakeUpMinute'] ?? 0,
+        wakeUpRampMinutes: json['wakeUpRampMinutes'] ?? 30,
+        smokeAlarmThreshold: (json['smokeAlarmThreshold'] ?? 600.0).toDouble(),
+        idleTimeoutSeconds: json['idleTimeoutSeconds'] ?? 30,
+        clapDbThreshold: (json['clapDbThreshold'] ?? 15.0).toDouble(),
+        clapWindowMs: json['clapWindowMs'] ?? 1500,
+      );
 
   String toJsonString() => jsonEncode(toJson());
-  factory AppSettings.fromJsonString(String s) => AppSettings.fromJson(jsonDecode(s));
+  factory AppSettings.fromJsonString(String s) =>
+      AppSettings.fromJson(jsonDecode(s));
 }

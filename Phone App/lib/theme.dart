@@ -1,70 +1,220 @@
-// lib/theme.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class AppTheme {
-  // ── Palette ───────────────────────────────────────────
-  static const Color bg          = Color(0xFF000000);
-  static const Color surface     = Color(0xFF0D0D0D);
-  static const Color surface2    = Color(0xFF1A1A1A);
-  static const Color border      = Color(0xFF2A2A2A);
-  static const Color accent      = Color(0xFF00E5FF);  // Cyan
-  static const Color accentDim   = Color(0xFF006B75);
-  static const Color success     = Color(0xFF00FF88);
-  static const Color warning     = Color(0xFFFFB300);
-  static const Color danger      = Color(0xFFFF4444);
-  static const Color dangerDim   = Color(0xFF4A1010);
-  static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecond  = Color(0xFF888888);
-  static const Color textDim     = Color(0xFF444444);
+class AppColors {
+  static const black = Color(0xFF000000);
+  static const white = Color(0xFFFFFFFF);
+  static const white90 = Color(0xE5FFFFFF);
+  static const white60 = Color(0x99FFFFFF);
+  static const white40 = Color(0x66FFFFFF);
+  static const white30 = Color(0x4DFFFFFF);
+  static const white20 = Color(0x33FFFFFF);
+  static const white10 = Color(0x1AFFFFFF);
+  static const white08 = Color(0x14FFFFFF);
+  static const white05 = Color(0x0DFFFFFF);
+}
 
-  // Device colors
-  static const Color colorFan    = Color(0xFF40C4FF);
-  static const Color colorLight  = Color(0xFFFFD740);
-  static const Color colorSocket = Color(0xFF69F0AE);
-  static const Color colorRgb    = Color(0xFFEA80FC);
+class AppSpace {
+  static const double unit = 8;
+  static const double sm = 8;
+  static const double md = 16;
+  static const double lg = 24;
+  static const double xl = 32;
+  static const double xxl = 48;
+  static const double xxxl = 64;
+  static const EdgeInsets pagePadding =
+      EdgeInsets.symmetric(horizontal: 20, vertical: 24);
+}
 
-  static ThemeData get dark => ThemeData(
-    brightness: Brightness.dark,
-    scaffoldBackgroundColor: bg,
-    colorScheme: const ColorScheme.dark(
-      primary: accent,
-      secondary: accentDim,
-      surface: surface,
-      error: danger,
-    ),
-    textTheme: GoogleFonts.spaceGroteskTextTheme(
-      const TextTheme(
-        bodyLarge: TextStyle(color: textPrimary),
-        bodyMedium: TextStyle(color: textSecond),
-        bodySmall: TextStyle(color: textDim),
-      ),
-    ),
-    sliderTheme: SliderThemeData(
-      activeTrackColor: accent,
-      inactiveTrackColor: surface2,
-      thumbColor: accent,
-      overlayColor: accent.withOpacity(0.2),
-      valueIndicatorColor: accent,
-    ),
-    switchTheme: SwitchThemeData(
-      thumbColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? accent : textSecond),
-      trackColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? accentDim : surface2),
-    ),
-    dividerColor: border,
-    cardColor: surface,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: bg,
-      elevation: 0,
-      titleTextStyle: TextStyle(
-        color: textPrimary,
+class AppBorders {
+  static const thinBorder = BorderSide(color: AppColors.white20, width: 1);
+  static const activeBorder = BorderSide(color: AppColors.white60, width: 1);
+  static const brightBorder = BorderSide(color: AppColors.white90, width: 1);
+}
+
+class AppTextStyles {
+  static TextStyle displayXL({Color color = AppColors.white90}) =>
+      GoogleFonts.manrope(
+        fontSize: 72,
+        fontWeight: FontWeight.w200,
+        letterSpacing: -2.5,
+        color: color,
+        height: 1,
+      );
+
+  static TextStyle displayLG({Color color = AppColors.white90}) =>
+      GoogleFonts.manrope(
+        fontSize: 48,
+        fontWeight: FontWeight.w200,
+        letterSpacing: -1.5,
+        color: color,
+        height: 1,
+      );
+
+  static TextStyle headlineLG({Color color = AppColors.white90}) =>
+      GoogleFonts.manrope(
+        fontSize: 32,
+        fontWeight: FontWeight.w300,
+        letterSpacing: -0.5,
+        color: color,
+      );
+
+  static TextStyle headlineMD({Color color = AppColors.white90}) =>
+      GoogleFonts.manrope(
+        fontSize: 24,
+        fontWeight: FontWeight.w300,
+        letterSpacing: -0.3,
+        color: color,
+      );
+
+  static TextStyle bodyLG({Color color = AppColors.white90}) =>
+      GoogleFonts.manrope(
         fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: color,
+      );
+
+  static TextStyle labelLG({Color color = AppColors.white60}) =>
+      GoogleFonts.manrope(
+        fontSize: 11,
         fontWeight: FontWeight.w600,
-        letterSpacing: 1.5,
-      ),
-      iconTheme: IconThemeData(color: textPrimary),
-    ),
+        letterSpacing: 3.5,
+        color: color,
+      );
+
+  static TextStyle labelSM({Color color = AppColors.white40}) =>
+      GoogleFonts.manrope(
+        fontSize: 9,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 2.5,
+        color: color,
+      );
+
+  static TextStyle tabular(TextStyle style) => style.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      );
+}
+
+const String kUiVersion = 'V2.4.1';
+const String kUiSignature = '$kUiVersion // TERMINAL_UI';
+
+class AppTheme {
+  static ThemeData get dark => ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: AppColors.black,
+        colorScheme: const ColorScheme.dark(
+          primary: AppColors.white,
+          onPrimary: AppColors.black,
+          secondary: AppColors.white60,
+          onSecondary: AppColors.black,
+          surface: AppColors.black,
+          onSurface: AppColors.white90,
+          error: AppColors.white60,
+          onError: AppColors.black,
+        ),
+        textTheme: GoogleFonts.manropeTextTheme(ThemeData.dark().textTheme),
+        iconTheme: const IconThemeData(color: AppColors.white60),
+        dividerColor: AppColors.white20,
+        dividerTheme: const DividerThemeData(
+          color: AppColors.white20,
+          thickness: 1,
+          space: 1,
+        ),
+        snackBarTheme: SnackBarThemeData(
+          backgroundColor: AppColors.black,
+          contentTextStyle: AppTextStyles.labelLG(color: AppColors.white90),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
+            side: AppBorders.activeBorder,
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: _FadeSlideTransitionBuilder(),
+            TargetPlatform.iOS: _FadeSlideTransitionBuilder(),
+            TargetPlatform.linux: _FadeSlideTransitionBuilder(),
+            TargetPlatform.macOS: _FadeSlideTransitionBuilder(),
+            TargetPlatform.windows: _FadeSlideTransitionBuilder(),
+          },
+        ),
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: Colors.transparent,
+        cardTheme: const CardThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          color: AppColors.black,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: InputBorder.none,
+          focusedBorder: const UnderlineInputBorder(
+            borderSide: AppBorders.activeBorder,
+          ),
+          enabledBorder: const UnderlineInputBorder(
+            borderSide: AppBorders.thinBorder,
+          ),
+          hintStyle: AppTextStyles.bodyLG(color: AppColors.white20),
+          labelStyle: AppTextStyles.labelLG(),
+        ),
+        sliderTheme: const SliderThemeData(
+          trackHeight: 1,
+          activeTrackColor: AppColors.white90,
+          inactiveTrackColor: AppColors.white20,
+          thumbColor: AppColors.white90,
+          overlayColor: Colors.transparent,
+        ),
+      );
+}
+
+Route<T> buildAppRoute<T>({
+  required RouteSettings settings,
+  required Widget child,
+}) {
+  return PageRouteBuilder<T>(
+    settings: settings,
+    pageBuilder: (_, __, ___) => child,
+    transitionDuration: const Duration(milliseconds: 300),
+    reverseTransitionDuration: const Duration(milliseconds: 300),
+    transitionsBuilder: (_, animation, __, routeChild) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOut,
+      );
+      return FadeTransition(
+        opacity: curved,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.03),
+            end: Offset.zero,
+          ).animate(curved),
+          child: routeChild,
+        ),
+      );
+    },
   );
+}
+
+class _FadeSlideTransitionBuilder extends PageTransitionsBuilder {
+  const _FadeSlideTransitionBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final curved = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.03),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      ),
+    );
+  }
 }
