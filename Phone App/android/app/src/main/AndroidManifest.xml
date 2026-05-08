@@ -6,8 +6,10 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
 
-    <!-- Keep screen on -->
+    <!-- Keep screen on + CPU alive -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- Prevent lockscreen from re-appearing on LineageOS after brief screen-off -->
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD"/>
 
     <!-- Microphone for clap detection + intimacy mode -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
@@ -49,7 +51,9 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize"
-            android:keepScreenOn="true">
+            android:keepScreenOn="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true">
 
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"

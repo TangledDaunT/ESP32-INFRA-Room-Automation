@@ -1,20 +1,24 @@
 // lib/services/openclaw_service.dart
 import 'dart:async';
 import 'dart:convert';
-
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/app_settings.dart';
 import '../models/device_state.dart';
 
 typedef StateCallback = void Function(Map<String, dynamic> state);
-// typedef VoidCallback = void Function();
 
 class OpenClawService {
   AppSettings _settings;
   StateCallback? onStateReceived;
+  VoidCallback? onConnected;
+  VoidCallback? onDisconnected;
 
-  Timer? _pollTimer;
-  bool _polling = false;
+  WebSocketChannel? _channel;
+  StreamSubscription? _wsSubscription;
+  Timer? _reconnectTimer;
+  ConnectionStatus status = ConnectionStatus.disconnected;
 
   OpenClawService(this._settings);
 
@@ -22,129 +26,140 @@ class OpenClawService {
     _settings = settings;
   }
 
-  String get _base => _settings.openclawBaseUrl;
+  String get _httpBase => _settings.openclawBaseUrl; // e.g. "http://192.168.1.30"
+  
+  String get _wsUrl {
+    final uri = Uri.parse(_httpBase);
+    return 'ws://${uri.host}:${uri.port}/ws';
+  }
 
-  Future<bool> checkConnection() async {
+  /// Connect WebSocket
+  void connect() {
+    _reconnectTimer?.cancel();
+    _connectWs();
+  }
+
+  void _connectWs() {
+    if (status == ConnectionStatus.connected) return;
+    
+    status = ConnectionStatus.connecting;
+    
+    try {
+      _channel = WebSocketChannel.connect(Uri.parse(_wsUrl));
+      
+      _wsSubscription = _channel!.stream.listen(
+        (message) {
+          if (status != ConnectionStatus.connected) {
+            status = ConnectionStatus.connected;
+            onConnected?.call();
+          }
+          try {
+            final data = jsonDecode(message) as Map<String, dynamic>;
+            onStateReceived?.call(data);
+          } catch (_) {}
+        },
+        onError: (error) {
+          _handleDisconnect();
+        },
+        onDone: () {
+          _handleDisconnect();
+        },
+        cancelOnError: true,
+      );
+    } catch (e) {
+      _handleDisconnect();
+    }
+  }
+
+  void _handleDisconnect() {
+    status = ConnectionStatus.disconnected;
+    onDisconnected?.call();
+    
+    _wsSubscription?.cancel();
+    _channel?.sink.close();
+    
+    // Auto-reconnect
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(const Duration(seconds: 2), _connectWs);
+  }
+
+  /// Send Command to API (HTTP POST) - Firmware accepts POST at /api/cmd
+  Future<bool> _sendCommand(Map<String, dynamic> payload) async {
     try {
       final res = await http
-          .get(Uri.parse('$_base/health'))
+          .post(
+            Uri.parse('$_httpBase/api/cmd'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
           .timeout(const Duration(seconds: 3));
       return res.statusCode == 200;
     } catch (_) {
-      return false;
-    }
-  }
-
-  Future<Map<String, dynamic>?> getState() async {
-    try {
-      final res = await http
-          .get(Uri.parse('$_base/state'))
-          .timeout(const Duration(seconds: 5));
-      if (res.statusCode == 200) {
-        return jsonDecode(res.body) as Map<String, dynamic>;
+      // Fallback: Try to send over WebSocket if HTTP fails
+      if (status == ConnectionStatus.connected && _channel != null) {
+        _channel!.sink.add(jsonEncode(payload));
+        return true;
       }
-    } catch (_) {}
-    return null;
-  }
-
-  Future<bool> setDevice(String device, bool state) async {
-    try {
-      final res = await http
-          .post(
-            Uri.parse('$_base/control/$device'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'state': state ? 'ON' : 'OFF'}),
-          )
-          .timeout(const Duration(seconds: 5));
-      return res.statusCode == 200;
-    } catch (_) {
       return false;
     }
   }
 
-  Future<bool> setBrightness(String device, int brightness) async {
-    try {
-      final res = await http
-          .post(
-            Uri.parse('$_base/control/$device/brightness'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'brightness': brightness}),
-          )
-          .timeout(const Duration(seconds: 5));
-      return res.statusCode == 200;
-    } catch (_) {
-      return false;
+  /// Send Command exclusively over WebSocket (ideal for high-frequency updates)
+  bool sendWsCommand(Map<String, dynamic> payload) {
+    if (status == ConnectionStatus.connected && _channel != null) {
+      _channel!.sink.add(jsonEncode(payload));
+      return true;
     }
+    return false;
   }
 
-  Future<bool> notifyWakeupDone() async {
-    try {
-      final res = await http
-          .post(
-            Uri.parse('$_base/wakeup/done'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'timestamp': DateTime.now().toIso8601String(),
-              'message': 'Wake-up routine complete from OpenClaw Remote',
-            }),
-          )
-          .timeout(const Duration(seconds: 5));
-      return res.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
+  // ── Specific Commands ──
+
+  Future<bool> setRelay(int channel, bool state) async {
+    return _sendCommand({
+      'cmd': 'relay',
+      'ch': channel,
+      'val': state
+    });
   }
 
-  Future<bool> notifySleepState(SleepState state) async {
-    try {
-      final res = await http
-          .post(
-            Uri.parse('$_base/sleep/state'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'state': state.name}),
-          )
-          .timeout(const Duration(seconds: 5));
-      return res.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
+  Future<bool> setStripBrightness(int brightness) async {
+    return _sendCommand({
+      'cmd': 'strip',
+      'val': brightness
+    });
   }
 
-  Future<bool> syncWakeUpTime(int hour, int minute) async {
-    try {
-      final res = await http
-          .post(
-            Uri.parse('$_base/settings/wakeup'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'hour': hour, 'minute': minute}),
-          )
-          .timeout(const Duration(seconds: 5));
-      return res.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
+  Future<bool> setFlashBrightness(int brightness) async {
+    return _sendCommand({
+      'cmd': 'flash',
+      'val': brightness
+    });
   }
 
-  // Poll state from OpenClaw every N seconds for bidirectional sync
-  void startPolling({int intervalSeconds = 3}) {
-    _pollTimer?.cancel();
-    _polling = true;
-    _pollTimer = Timer.periodic(
-      Duration(seconds: intervalSeconds),
-      (_) async {
-        if (!_polling) return;
-        final state = await getState();
-        if (state != null) onStateReceived?.call(state);
-      },
-    );
+  Future<bool> setMode(String mode) async {
+    return _sendCommand({
+      'cmd': 'mode',
+      'val': mode
+    });
   }
 
-  void stopPolling() {
-    _polling = false;
-    _pollTimer?.cancel();
+  Future<bool> setAllOff() async {
+    return _sendCommand({'cmd': 'all_off'});
+  }
+
+  Future<bool> setAllOn() async {
+    return _sendCommand({'cmd': 'all_on'});
+  }
+
+  void disconnect() {
+    _reconnectTimer?.cancel();
+    _wsSubscription?.cancel();
+    _channel?.sink.close();
+    status = ConnectionStatus.disconnected;
   }
 
   void dispose() {
-    stopPolling();
+    disconnect();
   }
 }

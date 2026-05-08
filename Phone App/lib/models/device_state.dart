@@ -21,7 +21,7 @@ class DeviceState {
 
   // ── App State ─────────────────────────────────────────
   SleepState sleepState;
-  bool intimacyMode;
+  bool musicMode;
   bool isNightMode;
 
   // ── Connection Status ─────────────────────────────────
@@ -47,7 +47,7 @@ class DeviceState {
     this.presenceDetected = false,
     this.smokeAlarm = false,
     this.sleepState = SleepState.awake,
-    this.intimacyMode = false,
+    this.musicMode = false,
     this.isNightMode = false,
     this.mqttStatus = ConnectionStatus.disconnected,
     this.bleStatus = ConnectionStatus.disconnected,
@@ -70,7 +70,7 @@ class DeviceState {
     bool? presenceDetected,
     bool? smokeAlarm,
     SleepState? sleepState,
-    bool? intimacyMode,
+    bool? musicMode,
     bool? isNightMode,
     ConnectionStatus? mqttStatus,
     ConnectionStatus? bleStatus,
@@ -92,7 +92,7 @@ class DeviceState {
       presenceDetected: presenceDetected ?? this.presenceDetected,
       smokeAlarm: smokeAlarm ?? this.smokeAlarm,
       sleepState: sleepState ?? this.sleepState,
-      intimacyMode: intimacyMode ?? this.intimacyMode,
+      musicMode: musicMode ?? this.musicMode,
       isNightMode: isNightMode ?? this.isNightMode,
       mqttStatus: mqttStatus ?? this.mqttStatus,
       bleStatus: bleStatus ?? this.bleStatus,

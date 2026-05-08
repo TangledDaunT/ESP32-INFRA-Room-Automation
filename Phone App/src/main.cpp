@@ -1,32 +1,22 @@
 /**
  * ============================================================
- *  OpenClaw ESP32 Firmware — Core 3.x  (No BLE, No MQTT)
+ *  OpenClaw ESP32 Firmware — Arduino Core 3.x  (No BLE, No MQTT)
  *
- *  Changes from previous version:
- *   - REMOVED: BLE (BLEDevice, BLEServer, BLEUtils, BLE2902)
- *   - REMOVED: MQTT / PubSubClient / WiFiClientSecure / HiveMQ
- *   - FIXED:   WDT now armed AFTER setup() completes (no timeout during boot)
- *   - FIXED:   wifi_connect() no longer blocks WDT during slow AP joins
- *   - FIXED:   WebSocket broadcast interval raised to 1000 ms (reduce heap
- * churn)
- *   - FIXED:   buildStateJson uses DynamicJsonDocument (stack-safe on Core 3.x)
- *   - KEPT:    All automation logic, sensor task, fade engine, web dashboard,
- *              OTA, NVS persistence, smoke tracker, APDS driver, relay/PWM
+ *  Features:
+ *   - 4 relays (active LOW), 2 PWM outputs (LEDC Core 3.x API)
+ *   - APDS-9930 I2C driver (lux + proximity)
+ *   - MQ-2 smoke detection with fan-lock override
+ *   - Gamma-corrected eased LED fading
+ *   - Radar presence + proximity flashlight + touch strip control
+ *   - AsyncWebServer + WebSocket dashboard
+ *   - ArduinoOTA with password
+ *   - NVS state persistence + smoke calibration
+ *   - FreeRTOS sensor task on Core 0
+ *   - Watchdog armed AFTER setup() completes
  *
- *  platformio.ini:
- *   [env:esp32dev]
- *   platform      = espressif32
- *   board         = esp32dev
- *   framework     = arduino
- *   monitor_speed = 115200
- *   board_build.partitions = huge_app.csv
- *   upload_protocol = espota               ; after first USB flash
- *   upload_port     = shreyansh.local
- *   upload_flags    = --auth=openclaw-ota-2024
- *   lib_deps =
- *     bblanchon/ArduinoJson @ ^6.21.4
- *     me-no-dev/ESP Async WebServer @ ^1.2.4
- *     me-no-dev/AsyncTCP @ ^1.1.1
+ *  Build:
+ *   platform = https://github.com/platformio/platform-espressif32.git#develop
+ *   See platformio.ini for full config.
  * ============================================================
  */
 
@@ -85,6 +75,8 @@
 // LEDC — Core 3.x
 #define LEDC_FREQ_HZ 5000
 #define LEDC_RESOLUTION 8 // 8-bit = 0–255
+#define LEDC_CH_FLASH 0
+#define LEDC_CH_STRIP 1
 
 // ─────────────────────────────────────────────
 //  SECTION 3 — FADE STATE STRUCT
@@ -95,7 +87,7 @@ struct FadeState {
   uint32_t stepMs = 10;
   uint32_t lastMs = 0;
   bool active = false;
-  uint8_t pin = 0;
+  uint8_t channel = 0;
 };
 
 static FadeState gFlashFade;
@@ -281,6 +273,10 @@ static void nvs_load() {
 // ─────────────────────────────────────────────
 //  SECTION 7 — HARDWARE CONTROL
 // ─────────────────────────────────────────────
+
+// Forward declaration — defined in Section 8 (Smoke Tracker)
+static bool gSmokeOverride = false;
+
 static const uint8_t RELAY_PINS[4] = {PIN_RELAY_LIGHTS, PIN_RELAY_FAN,
                                       PIN_RELAY_RGB_AC, PIN_RELAY_SOCKET};
 static bool gRelayState[4] = {false, false, false, false};
@@ -293,12 +289,14 @@ static void hw_initGPIO() {
     digitalWrite(RELAY_PINS[i], HIGH); // Active LOW — start OFF
   }
 
-  // Core 3.x LEDC API
-  ledcAttach(PIN_MOSFET_FLASH, LEDC_FREQ_HZ, LEDC_RESOLUTION);
-  ledcWrite(PIN_MOSFET_FLASH, 0);
+  // Core 2.x LEDC API: setup channel, then attach pin
+  ledcSetup(LEDC_CH_FLASH, LEDC_FREQ_HZ, LEDC_RESOLUTION);
+  ledcAttachPin(PIN_MOSFET_FLASH, LEDC_CH_FLASH);
+  ledcWrite(LEDC_CH_FLASH, 0);
 
-  ledcAttach(PIN_MOSFET_STRIP, LEDC_FREQ_HZ, LEDC_RESOLUTION);
-  ledcWrite(PIN_MOSFET_STRIP, 0);
+  ledcSetup(LEDC_CH_STRIP, LEDC_FREQ_HZ, LEDC_RESOLUTION);
+  ledcAttachPin(PIN_MOSFET_STRIP, LEDC_CH_STRIP);
+  ledcWrite(LEDC_CH_STRIP, 0);
 
   pinMode(PIN_RADAR, INPUT);
   pinMode(PIN_TOUCH, INPUT);
@@ -306,12 +304,13 @@ static void hw_initGPIO() {
   pinMode(PIN_STATUS_LED, OUTPUT);
   digitalWrite(PIN_STATUS_LED, LOW);
 
-  Serial.println("[HW] GPIO initialized (Core 3.x LEDC)");
+  Serial.println("[HW] GPIO initialized (LEDC channels 0,1)");
 }
 
 // Active LOW: true = ON → GPIO LOW
 static void hw_setRelay(int ch, bool on) {
-  if (ch == 1 && gSmokeOverride && !on) return;
+  if (ch == 1 && gSmokeOverride && !on)
+    return;
   if (ch < 0 || ch > 3)
     return;
   gRelayState[ch] = on;
@@ -321,14 +320,14 @@ static void hw_setRelay(int ch, bool on) {
 }
 
 static void hw_setPWM_flash(uint8_t val) {
-  ledcWrite(PIN_MOSFET_FLASH, val);
+  ledcWrite(LEDC_CH_FLASH, val);
   gFlashBright = val;
   gNVS.flash = val;
   nvs_save();
 }
 
 static void hw_setPWM_strip(uint8_t val) {
-  ledcWrite(PIN_MOSFET_STRIP, val);
+  ledcWrite(LEDC_CH_STRIP, val);
   gStripBright = val;
   gNVS.strip = val;
   nvs_save();
@@ -338,7 +337,7 @@ static void hw_setPWM_strip(uint8_t val) {
 static void hw_fadeFlash(uint8_t target, uint32_t durationMs) {
   gFlashFade.current = gFlashBright;
   gFlashFade.target = target;
-  gFlashFade.pin = PIN_MOSFET_FLASH;
+  gFlashFade.channel = LEDC_CH_FLASH;
   uint8_t delta = (uint8_t)abs((int)target - (int)gFlashBright);
   gFlashFade.stepMs = (delta == 0)
                           ? durationMs
@@ -350,7 +349,7 @@ static void hw_fadeFlash(uint8_t target, uint32_t durationMs) {
 static void hw_fadeStrip(uint8_t target, uint32_t durationMs) {
   gStripFade.current = gStripBright;
   gStripFade.target = target;
-  gStripFade.pin = PIN_MOSFET_STRIP;
+  gStripFade.channel = LEDC_CH_STRIP;
   uint8_t delta = (uint8_t)abs((int)target - (int)gStripBright);
   gStripFade.stepMs = (delta == 0)
                           ? durationMs
@@ -360,27 +359,32 @@ static void hw_fadeStrip(uint8_t target, uint32_t durationMs) {
 }
 
 static uint8_t gamma8(uint8_t x) {
-    float xf = x / 255.0f;
-    xf = powf(xf, 2.2f);
-    return (uint8_t)(xf * 255.0f);
+  float xf = x / 255.0f;
+  xf = powf(xf, 2.2f);
+  return (uint8_t)(xf * 255.0f);
 }
 static void hw_processSingleFade(FadeState &f) {
-    if (!f.active) return;
-    uint32_t now = millis();
-    if (now - f.lastMs < f.stepMs) return;
-    f.lastMs = now;
-    if (f.current == f.target) {
-        f.active = false;
-        return;
-    }
-    int diff = (int)f.target - (int)f.current;
-    int step = diff / 5;
-    if (step == 0) step = (diff > 0) ? 1 : -1;
-    f.current += step;
-    uint8_t corrected = gamma8(f.current);
-    ledcWrite(f.pin, corrected);
-    if (f.pin == PIN_MOSFET_STRIP) gStripBright = f.current;
-    else gFlashBright = f.current;
+  if (!f.active)
+    return;
+  uint32_t now = millis();
+  if (now - f.lastMs < f.stepMs)
+    return;
+  f.lastMs = now;
+  if (f.current == f.target) {
+    f.active = false;
+    return;
+  }
+  int diff = (int)f.target - (int)f.current;
+  int step = diff / 5;
+  if (step == 0)
+    step = (diff > 0) ? 1 : -1;
+  f.current += step;
+  uint8_t corrected = gamma8(f.current);
+  ledcWrite(f.channel, corrected);
+  if (f.channel == LEDC_CH_STRIP)
+    gStripBright = f.current;
+  else
+    gFlashBright = f.current;
 }
 
 static void hw_processFades() {
@@ -394,7 +398,7 @@ static uint8_t hw_getStripBrightness() { return gStripBright; }
 // ─────────────────────────────────────────────
 //  SECTION 8 — SMOKE TRACKER DSP
 // ─────────────────────────────────────────────
-static bool gSmokeOverride = false;
+// gSmokeOverride declared in Section 7 (before hw_setRelay uses it)
 enum SmokePhase { SMOKE_WARMUP, SMOKE_CALIBRATE, SMOKE_IDLE, SMOKE_COOLDOWN };
 
 struct SmokeTracker {
@@ -601,7 +605,7 @@ static void automation_tick() {
         Serial.println("[Auto] Long-press: ramp");
       }
       uint8_t rv = triangleWave(now - (gTouchDownMs + 2000), 4000, 30, 255);
-      ledcWrite(PIN_MOSFET_STRIP, rv);
+      ledcWrite(LEDC_CH_STRIP, rv);
       gStripBright = rv;
     }
   }
@@ -828,7 +832,7 @@ static void webserver_init() {
   gHttpServer.addHandler(&gWs);
 
   gHttpServer.on("/", HTTP_GET, [](AsyncWebServerRequest *req) {
-    req->send_P(200, "text/html", DASHBOARD_HTML);
+    req->send(200, "text/html", DASHBOARD_HTML);
   });
   gHttpServer.on("/api/state", HTTP_GET, [](AsyncWebServerRequest *req) {
     req->send(200, "application/json", buildStateJson());
@@ -1001,17 +1005,14 @@ void setup() {
 
   webserver_init();
 
-  // Init fade pin references
-  gFlashFade.pin = PIN_MOSFET_FLASH;
-  gStripFade.pin = PIN_MOSFET_STRIP;
+  // Init fade channel references
+  gFlashFade.channel = LEDC_CH_FLASH;
+  gStripFade.channel = LEDC_CH_STRIP;
 
   xTaskCreatePinnedToCore(sensorTask, "sensors", 4096, nullptr, 1, nullptr, 0);
 
   // ── Arm WDT LAST — after all blocking init is done ──
-  esp_task_wdt_deinit();
-  esp_task_wdt_config_t wdt_cfg = {
-      .timeout_ms = WDT_TIMEOUT_MS, .idle_core_mask = 0, .trigger_panic = true};
-  esp_task_wdt_init(&wdt_cfg);
+  esp_task_wdt_init(WDT_TIMEOUT_MS / 1000, true); // IDF 4.x: (seconds, panic)
   esp_task_wdt_add(NULL); // watch main loop task only
 
   Serial.println("\n[BOOT] All systems nominal.");
@@ -1028,13 +1029,13 @@ void setup() {
 //  SECTION 18 — LOOP
 // ─────────────────────────────────────────────
 void loop() {
-    esp_task_wdt_reset();
-    ArduinoOTA.handle();   // MUST be first
-    wifi_tick();
-    webserver_tick();
-    hw_processFades();
-    automation_tick();
-    delay(10);
+  esp_task_wdt_reset();
+  ArduinoOTA.handle(); // MUST be first
+  wifi_tick();
+  webserver_tick();
+  hw_processFades();
+  automation_tick();
+  delay(10);
 }
 
 /*

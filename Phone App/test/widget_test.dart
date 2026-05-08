@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import 'package:openclaw_remote/theme.dart';
 import 'package:openclaw_remote/widgets/brightness_slider.dart';
 
 void main() {
-  testWidgets('brightness slider shows its label and percentage', (
+  testWidgets('brightness slider shows percentage value', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -14,8 +15,9 @@ void main() {
         home: Scaffold(
           body: SizedBox(
             height: 320,
+            width: 80,
             child: BrightnessSlider(
-              label: 'RGB STRIP',
+              icon: Symbols.light_group,
               value: 128,
               onChanged: (_) {},
             ),
@@ -24,8 +26,7 @@ void main() {
       ),
     );
 
-    expect(find.text('RGB STRIP'), findsOneWidget);
-    expect(find.text('50%'), findsOneWidget);
-    expect(find.byType(Slider), findsOneWidget);
+    // Percentage display: 128/255 = 50%
+    expect(find.text('50'), findsOneWidget);
   });
 }

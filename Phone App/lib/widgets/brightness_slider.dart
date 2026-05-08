@@ -1,19 +1,27 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
 
+/// A full-height vertical brightness slider with liquid-glass aesthetic.
+///
+/// Designed for landscape dashboard — occupies the full height of its parent.
+/// The filled portion glows proportionally to the brightness level.
+/// An icon is displayed at the top and the percentage near the thumb.
 class BrightnessSlider extends StatefulWidget {
   const BrightnessSlider({
     super.key,
-    required this.label,
+    required this.icon,
     required this.value,
     required this.onChanged,
   });
 
-  final String label;
+  /// Icon displayed at the top of the slider bar.
+  final IconData icon;
+
+  /// Current brightness value (0–255).
   final double value;
+
+  /// Called when the user drags to change the value.
   final ValueChanged<double> onChanged;
 
   @override
@@ -23,127 +31,137 @@ class BrightnessSlider extends StatefulWidget {
 class _BrightnessSliderState extends State<BrightnessSlider> {
   bool _dragging = false;
 
+  void _handleVerticalDrag(
+      DragUpdateDetails details, BoxConstraints constraints) {
+    final trackHeight = constraints.maxHeight - 48; // padding for icon + bottom
+    final dy = details.localPosition.dy - 24; // offset for top padding
+    // Invert: top = 255, bottom = 0
+    final fraction = 1.0 - (dy / trackHeight).clamp(0.0, 1.0);
+    widget.onChanged((fraction * 255).roundToDouble());
+  }
+
+  void _handleTapDown(TapDownDetails details, BoxConstraints constraints) {
+    final trackHeight = constraints.maxHeight - 48;
+    final dy = details.localPosition.dy - 24;
+    final fraction = 1.0 - (dy / trackHeight).clamp(0.0, 1.0);
+    widget.onChanged((fraction * 255).roundToDouble());
+  }
+
   @override
   Widget build(BuildContext context) {
     final clampedValue = widget.value.clamp(0, 255).toDouble();
-    final percent = ((clampedValue / 255) * 100).round();
+    final fraction = clampedValue / 255;
+    final percent = (fraction * 100).round();
 
-    return Column(
-      children: [
-        Text(
-          widget.label.toUpperCase(),
-          style: AppTextStyles.labelSM(),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: AppSpace.md),
-        Expanded(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const _SliderTicks(),
-              const SizedBox(width: AppSpace.sm),
-              Expanded(
-                child: RotatedBox(
-                  quarterTurns: -1,
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 1,
-                      activeTrackColor: AppColors.white90,
-                      inactiveTrackColor: AppColors.white20,
-                      thumbColor: AppColors.white90,
-                      thumbShape: _RectangularThumbShape(active: _dragging),
-                      overlayColor: AppColors.white20,
-                      overlayShape: SliderComponentShape.noOverlay,
-                    ),
-                    child: Slider(
-                      value: clampedValue,
-                      min: 0,
-                      max: 255,
-                      onChangeStart: (_) => setState(() => _dragging = true),
-                      onChangeEnd: (_) => setState(() => _dragging = false),
-                      onChanged: widget.onChanged,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final trackHeight = constraints.maxHeight - 48;
+        final filledHeight = trackHeight * fraction;
+
+        return GestureDetector(
+          onVerticalDragStart: (_) => setState(() => _dragging = true),
+          onVerticalDragEnd: (_) => setState(() => _dragging = false),
+          onVerticalDragUpdate: (d) => _handleVerticalDrag(d, constraints),
+          onTapDown: (d) => _handleTapDown(d, constraints),
+          behavior: HitTestBehavior.opaque,
+          child: SizedBox(
+            width: 52,
+            child: Column(
+              children: [
+                // Icon at top
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Icon(
+                    widget.icon,
+                    size: 16,
+                    color: fraction > 0 ? AppColors.white60 : AppColors.white20,
+                    fill: fraction > 0.5 ? 1 : 0,
+                    weight: 300,
+                  ),
+                ),
+                // The track
+                Expanded(
+                  child: Container(
+                    width: 32,
+                    decoration: GlassDecoration.bar(borderRadius: 16),
+                    child: Stack(
+                      alignment: Alignment.bottomCenter,
+                      children: [
+                        // Filled portion
+                        AnimatedContainer(
+                          duration: _dragging
+                              ? Duration.zero
+                              : const Duration(milliseconds: 150),
+                          curve: Curves.easeOut,
+                          width: 32,
+                          height: filledHeight.clamp(0, trackHeight),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [
+                                AppColors.white
+                                    .withValues(alpha: 0.15 + fraction * 0.15),
+                                AppColors.white.withValues(alpha: 0.05),
+                              ],
+                            ),
+                            border: Border.all(
+                              color: AppColors.white
+                                  .withValues(alpha: 0.1 + fraction * 0.1),
+                              width: 0.5,
+                            ),
+                          ),
+                        ),
+                        // Thumb indicator at top of filled portion
+                        Positioned(
+                          bottom: (filledHeight - 2).clamp(0, trackHeight),
+                          child: AnimatedContainer(
+                            duration: _dragging
+                                ? Duration.zero
+                                : const Duration(milliseconds: 150),
+                            width: 28,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: AppColors.white
+                                  .withValues(alpha: _dragging ? 0.9 : 0.6),
+                              borderRadius: BorderRadius.circular(2),
+                              boxShadow: _dragging
+                                  ? [
+                                      BoxShadow(
+                                        color: AppColors.white
+                                            .withValues(alpha: 0.15),
+                                        blurRadius: 8,
+                                        spreadRadius: 1,
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-            ],
+                // Percentage at bottom
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    '$percent',
+                    style: AppTextStyles.tabular(
+                      AppTextStyles.labelSM(
+                        color: fraction > 0
+                            ? AppColors.white60
+                            : AppColors.white20,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: AppSpace.md),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 150),
-          switchInCurve: Curves.easeIn,
-          child: Text(
-            '$percent%',
-            key: ValueKey<int>(percent),
-            style: AppTextStyles.tabular(AppTextStyles.headlineMD()),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SliderTicks extends StatelessWidget {
-  const _SliderTicks();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(5, (index) {
-        final long = index.isEven;
-        return Container(
-          width: long ? 12 : 8,
-          height: 1,
-          color: AppColors.white20,
         );
-      }),
-    );
-  }
-}
-
-class _RectangularThumbShape extends SliderComponentShape {
-  const _RectangularThumbShape({required this.active});
-
-  final bool active;
-
-  @override
-  Size getPreferredSize(bool isEnabled, bool isDiscrete) => const Size(8, 24);
-
-  @override
-  void paint(
-    PaintingContext context,
-    Offset center, {
-    required Animation<double> activationAnimation,
-    required Animation<double> enableAnimation,
-    required bool isDiscrete,
-    required TextPainter labelPainter,
-    required RenderBox parentBox,
-    required SliderThemeData sliderTheme,
-    required TextDirection textDirection,
-    required double value,
-    required double textScaleFactor,
-    required Size sizeWithOverflow,
-  }) {
-    final canvas = context.canvas;
-    final glowStrength = active
-        ? math.max(0.2, activationAnimation.value)
-        : activationAnimation.value * 0.2;
-
-    if (glowStrength > 0) {
-      canvas.drawRect(
-        Rect.fromCenter(center: center, width: 8, height: 24),
-        Paint()
-          ..color = AppColors.white20
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-      );
-    }
-
-    canvas.drawRect(
-      Rect.fromCenter(center: center, width: 8, height: 24),
-      Paint()..color = AppColors.white90,
+      },
     );
   }
 }

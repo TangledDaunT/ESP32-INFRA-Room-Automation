@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   static const black = Color(0xFF000000);
@@ -12,6 +11,63 @@ class AppColors {
   static const white10 = Color(0x1AFFFFFF);
   static const white08 = Color(0x14FFFFFF);
   static const white05 = Color(0x0DFFFFFF);
+
+  // Glass-specific
+  static const glassFill = Color(0x0FFFFFFF); // ~6% white
+  static const glassBorder = Color(0x1FFFFFFF); // ~12% white
+  static const glassHighlight = Color(0x14FFFFFF); // ~8% white
+  static const glassGlow = Color(0x0AFFFFFF); // ~4% white
+}
+
+/// Liquid glass decoration presets for the dashboard UI.
+class GlassDecoration {
+  GlassDecoration._();
+
+  /// Standard glass panel — used for relay buttons, slider backgrounds.
+  static BoxDecoration panel({
+    double borderRadius = 16,
+    bool isActive = false,
+  }) {
+    return BoxDecoration(
+      borderRadius: BorderRadius.circular(borderRadius),
+      color: isActive ? AppColors.white10 : AppColors.glassFill,
+      border: Border.all(
+        color: isActive ? AppColors.white30 : AppColors.glassBorder,
+        width: 0.5,
+      ),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          isActive ? AppColors.white10 : AppColors.glassHighlight,
+          Colors.transparent,
+          isActive ? AppColors.white05 : AppColors.glassGlow,
+        ],
+        stops: const [0.0, 0.5, 1.0],
+      ),
+    );
+  }
+
+  /// Subtle glass for sliders / bars.
+  static BoxDecoration bar({double borderRadius = 20}) {
+    return BoxDecoration(
+      borderRadius: BorderRadius.circular(borderRadius),
+      color: AppColors.glassFill,
+      border: Border.all(color: AppColors.glassBorder, width: 0.5),
+    );
+  }
+
+  /// Glow effect box shadow for active states.
+  static List<BoxShadow> glow(
+      {Color color = AppColors.white, double blur = 12}) {
+    return [
+      BoxShadow(
+        color: color.withValues(alpha: 0.08),
+        blurRadius: blur,
+        spreadRadius: 1,
+      ),
+    ];
+  }
 }
 
 class AppSpace {
@@ -34,61 +90,60 @@ class AppBorders {
 
 class AppTextStyles {
   static TextStyle displayXL({Color color = AppColors.white90}) =>
-      GoogleFonts.manrope(
+      const TextStyle(
+        fontFamily: 'Manrope',
         fontSize: 72,
         fontWeight: FontWeight.w200,
         letterSpacing: -2.5,
-        color: color,
         height: 1,
-      );
+      ).copyWith(color: color);
 
   static TextStyle displayLG({Color color = AppColors.white90}) =>
-      GoogleFonts.manrope(
+      const TextStyle(
+        fontFamily: 'Manrope',
         fontSize: 48,
         fontWeight: FontWeight.w200,
         letterSpacing: -1.5,
-        color: color,
         height: 1,
-      );
+      ).copyWith(color: color);
 
   static TextStyle headlineLG({Color color = AppColors.white90}) =>
-      GoogleFonts.manrope(
+      const TextStyle(
+        fontFamily: 'Manrope',
         fontSize: 32,
         fontWeight: FontWeight.w300,
         letterSpacing: -0.5,
-        color: color,
-      );
+      ).copyWith(color: color);
 
   static TextStyle headlineMD({Color color = AppColors.white90}) =>
-      GoogleFonts.manrope(
+      const TextStyle(
+        fontFamily: 'Manrope',
         fontSize: 24,
         fontWeight: FontWeight.w300,
         letterSpacing: -0.3,
-        color: color,
-      );
+      ).copyWith(color: color);
 
-  static TextStyle bodyLG({Color color = AppColors.white90}) =>
-      GoogleFonts.manrope(
+  static TextStyle bodyLG({Color color = AppColors.white90}) => const TextStyle(
+        fontFamily: 'Manrope',
         fontSize: 16,
         fontWeight: FontWeight.w400,
-        color: color,
-      );
+      ).copyWith(color: color);
 
   static TextStyle labelLG({Color color = AppColors.white60}) =>
-      GoogleFonts.manrope(
+      const TextStyle(
+        fontFamily: 'Manrope',
         fontSize: 11,
         fontWeight: FontWeight.w600,
         letterSpacing: 3.5,
-        color: color,
-      );
+      ).copyWith(color: color);
 
   static TextStyle labelSM({Color color = AppColors.white40}) =>
-      GoogleFonts.manrope(
+      const TextStyle(
+        fontFamily: 'Manrope',
         fontSize: 9,
         fontWeight: FontWeight.w500,
         letterSpacing: 2.5,
-        color: color,
-      );
+      ).copyWith(color: color);
 
   static TextStyle tabular(TextStyle style) => style.copyWith(
         fontFeatures: const [FontFeature.tabularFigures()],
@@ -113,7 +168,12 @@ class AppTheme {
           error: AppColors.white60,
           onError: AppColors.black,
         ),
-        textTheme: GoogleFonts.manropeTextTheme(ThemeData.dark().textTheme),
+        fontFamily: 'Manrope',
+        textTheme: ThemeData.dark().textTheme.apply(
+              fontFamily: 'Manrope',
+              bodyColor: AppColors.white90,
+              displayColor: AppColors.white90,
+            ),
         iconTheme: const IconThemeData(color: AppColors.white60),
         dividerColor: AppColors.white20,
         dividerTheme: const DividerThemeData(
