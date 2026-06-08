@@ -6,7 +6,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import '../models/app_settings.dart';
@@ -17,8 +16,10 @@ import '../models/app_settings.dart';
 /// - Sends audio to OpenClaw webhook for transcription
 /// - Provides state management for UI feedback
 class FridayService extends ChangeNotifier {
-  final AppSettings _settings;
-  final AudioRecorder _recorder = AudioRecorder();
+  static const Duration _requestTimeout = Duration(seconds: 5);
+
+  AppSettings _settings;
+  AudioRecorder? _recorder;
   
   bool _isRecording = false;
   String? _recordingPath;
@@ -28,10 +29,16 @@ class FridayService extends ChangeNotifier {
   // Getters
   bool get isRecording => _isRecording;
   String? get lastError => _lastError;
+  Uri get voiceEndpoint => Uri.parse('${_settings.fridayBaseUrl}/hooks/voice');
+  Map<String, String> get requestHeaders => {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${_settings.fridayHookToken}',
+      };
   Duration? get recordingDuration => 
       _recordingStartedAt != null 
           ? DateTime.now().difference(_recordingStartedAt!) 
           : null;
+  AudioRecorder get _audioRecorder => _recorder ??= AudioRecorder();
   
   /// Stream for recording state updates
   final _recordingController = StreamController<bool>.broadcast();
@@ -42,7 +49,7 @@ class FridayService extends ChangeNotifier {
   /// Initialize and request permissions
   Future<bool> initialize() async {
     try {
-      final hasPermission = await _recorder.hasPermission();
+      final hasPermission = await _audioRecorder.hasPermission();
       if (!hasPermission) {
         _lastError = 'Microphone permission denied';
         notifyListeners();
@@ -70,24 +77,24 @@ class FridayService extends ChangeNotifier {
   Future<void> _startRecording() async {
     try {
       // Check permission first
-      final hasPermission = await _recorder.hasPermission();
+      final hasPermission = await _audioRecorder.hasPermission();
       if (!hasPermission) {
         throw Exception('Microphone permission denied');
       }
 
-      // Get temp directory for recording
-      final tempDir = await getTemporaryDirectory();
-      _recordingPath = '${tempDir.path}/friday_command_${DateTime.now().millisecondsSinceEpoch}.wav';
+      final tempDir = Directory.systemTemp;
+      _recordingPath =
+          '${tempDir.path}/friday_command_${DateTime.now().millisecondsSinceEpoch}.wav';
       
       // Configure for optimal voice recording
-      final config = RecordConfig(
+      const config = RecordConfig(
         encoder: AudioEncoder.wav,
         bitRate: 128000,
         sampleRate: 16000, // Whisper-optimized
         numChannels: 1, // Mono
       );
 
-      await _recorder.start(config, path: _recordingPath!);
+      await _audioRecorder.start(config, path: _recordingPath!);
       
       _isRecording = true;
       _recordingStartedAt = DateTime.now();
@@ -106,10 +113,12 @@ class FridayService extends ChangeNotifier {
 
   /// Stop recording and send to Friday
   Future<void> _stopAndSend() async {
+    String? path;
     try {
       // Stop recording
-      final path = await _recorder.stop();
+      path = await _audioRecorder.stop();
       _isRecording = false;
+      _recordingStartedAt = null;
       _recordingController.add(false);
       notifyListeners();
 
@@ -121,15 +130,22 @@ class FridayService extends ChangeNotifier {
       debugPrint('[FridayService] Stopped recording, sending to Friday...');
 
       // Send to Friday
-      await _sendToFriday(path);
-
-      // Cleanup temp file
-      await _cleanupRecording(path);
+      try {
+        await _sendToFriday(path);
+      } finally {
+        // Cleanup temp file even if send fails
+        await _cleanupRecording(path);
+      }
 
     } catch (e) {
       _lastError = 'Failed to stop/send: $e';
+      _isRecording = false;
+      _recordingStartedAt = null;
       notifyListeners();
       debugPrint('[FridayService] Error stopping/sending: $e');
+      if (path != null) {
+        await _cleanupRecording(path);
+      }
     }
   }
 
@@ -143,11 +159,8 @@ class FridayService extends ChangeNotifier {
       }
 
       final audioBytes = await audioFile.readAsBytes();
-      final base64Audio = base64Encode(audioBytes);
+      final base64Audio = await compute(base64Encode, audioBytes);
 
-      // Build URL
-      final fridayUrl = '${_settings.fridayBaseUrl}/hooks/voice';
-      
       // Prepare payload
       final payload = {
         'audio': base64Audio,
@@ -159,13 +172,10 @@ class FridayService extends ChangeNotifier {
 
       // Send to Friday
       final response = await http.post(
-        Uri.parse(fridayUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${_settings.fridayHookToken}',
-        },
+        voiceEndpoint,
+        headers: requestHeaders,
         body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(_requestTimeout);
 
       if (response.statusCode == 200) {
         debugPrint('[FridayService] Audio sent successfully');
@@ -202,8 +212,9 @@ class FridayService extends ChangeNotifier {
   Future<void> cancelRecording() async {
     if (_isRecording) {
       try {
-        final path = await _recorder.stop();
+        final path = await _audioRecorder.stop();
         _isRecording = false;
+        _recordingStartedAt = null;
         _recordingController.add(false);
         notifyListeners();
         
@@ -219,24 +230,26 @@ class FridayService extends ChangeNotifier {
   /// Force send last recording (for retry)
   Future<void> retryLastSend() async {
     if (_recordingPath != null && await File(_recordingPath!).exists()) {
-      await _sendToFriday(_recordingPath!);
-      await _cleanupRecording(_recordingPath!);
+      try {
+        await _sendToFriday(_recordingPath!);
+      } finally {
+        await _cleanupRecording(_recordingPath!);
+      }
     }
   }
 
   /// Update settings reference
   void updateSettings(AppSettings settings) {
-    // Assuming _settings is not final, reassign
-    // For now, this service uses settings passed at construction
+    _settings = settings;
   }
 
   @override
   void dispose() {
     _recordingController.close();
     if (_isRecording) {
-      _recorder.stop();
+      _recorder?.stop();
     }
-    _recorder.dispose();
+    _recorder?.dispose();
     super.dispose();
   }
 }

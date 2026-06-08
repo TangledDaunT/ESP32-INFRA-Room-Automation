@@ -41,9 +41,11 @@ class DeviceProvider extends ChangeNotifier {
   Timer? _clapIndicatorTimer;
   bool _showClapIndicator = false;
   bool _smokeAlarmLatched = false;
-  bool _lastPresence = false;
-
-  DeviceProvider(this._settings, this._activityLog) {
+  DeviceProvider(
+    this._settings,
+    this._activityLog, {
+    FridayService? fridayService,
+  }) {
     _openclaw = OpenClawService(_settings);
     _clap = ClapDetector(
       clapDbThreshold: _settings.clapDbThreshold,
@@ -51,7 +53,7 @@ class DeviceProvider extends ChangeNotifier {
     );
     _sleep = SleepService(_settings);
     _wakeup = WakeupService(_settings);
-    _friday = FridayService(settings: _settings);
+    _friday = fridayService ?? FridayService(settings: _settings);
 
     _setupCallbacks();
     _init();
@@ -60,6 +62,7 @@ class DeviceProvider extends ChangeNotifier {
   /// Set alarm service reference for sleep mode integration
   void setAlarmService(AlarmService service) {
     _alarmService = service;
+    _alarmService?.updateSettings(_settings);
   }
 
   DeviceState get state => _state;
@@ -321,7 +324,7 @@ class DeviceProvider extends ChangeNotifier {
 
   void _turnOffAllWithFade() {
     final startBrightness = _state.rgbBrightness;
-    const steps = 20;
+    const steps = 10;
     const stepDuration = Duration(milliseconds: 50);
 
     var step = 0;
@@ -329,7 +332,7 @@ class DeviceProvider extends ChangeNotifier {
     _rampTimer = Timer.periodic(stepDuration, (timer) {
       step++;
       final newBrightness = (startBrightness * (1 - step / steps)).round().clamp(0, 255);
-      setRgbBrightness(newBrightness);
+      setRgbBrightnessFast(newBrightness);
 
       if (step >= steps) {
         timer.cancel();
@@ -365,9 +368,10 @@ class DeviceProvider extends ChangeNotifier {
       step++;
       final brightness =
           (from + ((to - from) * (step / steps))).round().clamp(0, 255);
-      setRgbBrightness(brightness);
+      setRgbBrightnessFast(brightness);
       if (step >= steps) {
         t.cancel();
+        _updateState(_state.copyWith(rgbBrightness: brightness)); // trigger UI update at end
         onComplete?.call();
       }
     });
@@ -432,6 +436,8 @@ class DeviceProvider extends ChangeNotifier {
     _sleep.updateSettings(settings);
     _wakeup.updateSettings(settings);
     _clap.updateSettings(settings.toJson());
+    _friday.updateSettings(settings);
+    _alarmService?.updateSettings(settings);
     await _activityLog.updateSettings(settings);
 
     notifyListeners();
@@ -466,14 +472,17 @@ class DeviceProvider extends ChangeNotifier {
     // 4. Notify laptop to set brightness to 0
     await _setLaptopBrightness(0);
 
-    _activityLog.addSystem('Sleep mode complete', 'Alarm set for 5:30 hours');
+    _activityLog.addSystem(
+      'Sleep mode complete',
+      'Alarm set for ${_settings.sleepAlarmHours}h ${_settings.sleepAlarmMinutes}m',
+    );
   }
 
   /// Fade off RGB and backup light smoothly
   Future<void> _turnOffRgbAndBackupWithFade() async {
     final startRgb = _state.rgbBrightness;
     final startBackup = _state.backupBrightness;
-    const steps = 20;
+    const steps = 10;
     const stepDuration = Duration(milliseconds: 50);
 
     var step = 0;
@@ -486,13 +495,14 @@ class DeviceProvider extends ChangeNotifier {
       // Fade RGB
       final newRgb = (startRgb * (1 - step / steps)).round().clamp(0, 255);
       if (_state.rgbBrightness != newRgb) {
-        setRgbBrightness(newRgb);
+        setRgbBrightnessFast(newRgb);
       }
       
       // Fade backup
       final newBackup = (startBackup * (1 - step / steps)).round().clamp(0, 255);
       if (_state.backupBrightness != newBackup) {
-        setBackupBrightness(newBackup);
+        _state = _state.copyWith(backupBrightness: newBackup);
+        _openclaw.setFlashBrightness(newBackup);
       }
 
       if (step >= steps) {

@@ -142,7 +142,7 @@ class _LogTile extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       entry.detail,
-                      style: AppTextStyles.bodyLG(color: AppColors.white70),
+                      style: AppTextStyles.bodyLG(color: AppColors.white60),
                     ),
                   ],
                 ],

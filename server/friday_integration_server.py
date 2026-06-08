@@ -30,7 +30,6 @@ import sys
 import json
 import time
 import base64
-import tempfile
 import subprocess
 import threading
 import logging
@@ -44,7 +43,23 @@ import argparse
 
 PORT = int(os.environ.get('FRIDAY_PORT', 41263))
 GATEWAY_PORT = int(os.environ.get('GATEWAY_PORT', 41262))
-HOOK_TOKEN = os.environ.get('OPENCLAW_HOOK_TOKEN', '')
+MAX_AUDIO_SIZE = 10 * 1024 * 1024
+TOKEN_FILE = Path.home() / '.friday' / '.hook_token'
+
+
+def load_hook_token() -> str:
+    """Load auth token from env or a local file."""
+    env_token = os.environ.get('OPENCLAW_HOOK_TOKEN', '').strip()
+    if env_token:
+        return env_token
+
+    try:
+        if TOKEN_FILE.exists():
+            return TOKEN_FILE.read_text(encoding='utf-8').strip()
+    except Exception:
+        return ''
+
+    return ''
 
 # Directories
 RECORDINGS_DIR = Path.home() / '.friday' / 'recordings'
@@ -81,12 +96,13 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger('friday')
+HOOK_TOKEN = load_hook_token()
 
 # ── Global State ─────────────────────────────────────────────
 
 _current_alarm = None
 _alarm_stop_event = threading.Event()
-_alarm_lock = threading.Lock()
+_alarm_lock = threading.RLock()
 
 
 # ── Utility Functions ───────────────────────────────────────
@@ -274,6 +290,20 @@ def stop_alarm_loop():
             logger.info("Alarm stopped")
 
 
+def prune_old_recordings(max_files: int = 100):
+    """Keep the recordings directory bounded."""
+    try:
+        recordings = sorted(
+            RECORDINGS_DIR.glob('voice_*.wav'),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+        for stale_file in recordings[max_files:]:
+            stale_file.unlink(missing_ok=True)
+    except Exception as exc:
+        logger.warning("Failed to prune recordings: %s", exc)
+
+
 def transcribe_dummy(audio_path: str) -> str:
     """Dummy transcription - just save and return placeholder"""
     # In production, call whisper or sherpa-onnx here
@@ -309,12 +339,17 @@ class FridayHandler(BaseHTTPRequestHandler):
             return
         
         content_len = int(self.headers.get('Content-Length', 0))
+        if content_len > MAX_AUDIO_SIZE:
+            self._json_response(413, {'error': 'Request too large'})
+            return
+
         body = self.rfile.read(content_len)
         
         try:
             payload = json.loads(body) if body else {}
-        except:
-            payload = {}
+        except json.JSONDecodeError:
+            self._json_response(400, {'error': 'Malformed JSON'})
+            return
         
         # Route handlers
         handlers = {
@@ -343,12 +378,21 @@ class FridayHandler(BaseHTTPRequestHandler):
             return
         
         # Save audio
-        audio_path = RECORDINGS_DIR / f"voice_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+        audio_path = RECORDINGS_DIR / (
+            f"voice_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.wav"
+        )
         try:
-            audio_bytes = base64.b64decode(audio_b64)
+            audio_bytes = base64.b64decode(audio_b64, validate=True)
+            if len(audio_bytes) > MAX_AUDIO_SIZE:
+                self._json_response(413, {'error': 'Audio too large'})
+                return
             with open(audio_path, 'wb') as f:
                 f.write(audio_bytes)
+            prune_old_recordings()
             logger.info(f"Saved audio: {audio_path}")
+        except ValueError:
+            self._json_response(400, {'error': 'Invalid base64 audio'})
+            return
         except Exception as e:
             logger.error(f"Failed to save audio: {e}")
             self._json_response(500, {'error': 'Failed to save audio'})
@@ -370,7 +414,11 @@ class FridayHandler(BaseHTTPRequestHandler):
     
     def _handle_sleep(self, payload: dict):
         """Handle sleep mode"""
-        brightness = payload.get('brightness', 0)
+        try:
+            brightness = int(payload.get('brightness', 0))
+        except (TypeError, ValueError):
+            self._json_response(400, {'error': 'Brightness must be an integer'})
+            return
         
         # Save current brightness before dimming
         try:
@@ -399,6 +447,11 @@ class FridayHandler(BaseHTTPRequestHandler):
         if brightness is None:
             success = restore_brightness()
         else:
+            try:
+                brightness = int(brightness)
+            except (TypeError, ValueError):
+                self._json_response(400, {'error': 'Brightness must be an integer'})
+                return
             success = set_brightness(brightness)
         
         self._json_response(200, {

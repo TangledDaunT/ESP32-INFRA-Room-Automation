@@ -168,7 +168,6 @@ class ClapDetector {
     int clapCooldownMs = 2000;
     bool clapHighPassEnabled = true;
     final int frameDurationMs = ((frameSize / sampleRate) * 1000).round();
-    int requiredConsecutive = 1;
 
     receivePort.listen((message) {
       if (message is UpdateSettingsMsg) {
@@ -262,10 +261,8 @@ class ClapDetector {
 
             double clapEnergy = 0.0;
             double lowEnergy = 0.0;
-            double totalEnergy = 0.0;
             for (int i = 0; i < magnitudes.length; i++) {
               final v = magnitudes[i];
-              totalEnergy += v;
               if (i <= lowNoiseBand) lowEnergy += v;
               if (i >= clapBandStart && i <= clapBandEnd) clapEnergy += v;
             }

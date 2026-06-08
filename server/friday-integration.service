@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /home/shreyansh/.openclaw/workspace/scripts/friday_integration_server.py --port 41263
+ExecStart=/usr/bin/python3 /Users/shreyansh/Documents/ESP\ 32\ INFRA/server/friday_integration_server.py --port 41263
 Restart=always
 RestartSec=5
 Environment="PYTHONUNBUFFERED=1"
@@ -14,10 +14,10 @@ User=shreyansh
 Group=shreyansh
 
 # Working directory
-WorkingDirectory=/home/shreyansh/.openclaw/workspace/scripts
+WorkingDirectory=/Users/shreyansh/Documents/ESP\ 32\ INFRA/server
 
 # Create necessary directories
-ExecStartPre=/bin/mkdir -p /home/shreyansh/.friday/recordings /home/shreyansh/.friday/logs
+ExecStartPre=/bin/mkdir -p /Users/shreyansh/.friday/recordings /Users/shreyansh/.friday/logs
 
 [Install]
 WantedBy=default.target

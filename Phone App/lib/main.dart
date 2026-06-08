@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import 'app_runtime.dart';
 import 'providers/alarm_provider.dart';
 import 'providers/device_provider.dart';
 import 'providers/settings_provider.dart';
@@ -27,14 +29,18 @@ void main() async {
     DeviceOrientation.landscapeRight,
   ]);
 
-  await WakelockPlus.enable();
-  _initForegroundTask();
+  await configurePlatformRuntime(
+    isWeb: kIsWeb,
+    enableWakelock: WakelockPlus.enable,
+    initForegroundTask: _initForegroundTask,
+  );
 
   final settingsProvider = SettingsProvider();
   await settingsProvider.load();
 
   final activityLog = ActivityLogService(settingsProvider.settings);
   await activityLog.load();
+  final fridayService = FridayService(settings: settingsProvider.settings);
 
   // Load alarms before app starts
   final alarmService = AlarmService();
@@ -48,9 +54,14 @@ void main() async {
         ChangeNotifierProvider.value(value: settingsProvider),
         ChangeNotifierProvider.value(value: activityLog),
         Provider.value(value: alarmService),
+        ChangeNotifierProvider.value(value: fridayService),
         ChangeNotifierProvider(
           create: (_) {
-            final deviceProvider = DeviceProvider(settingsProvider.settings, activityLog);
+            final deviceProvider = DeviceProvider(
+              settingsProvider.settings,
+              activityLog,
+              fridayService: fridayService,
+            );
             deviceProvider.setAlarmService(alarmService);
             return deviceProvider;
           },
@@ -65,16 +76,6 @@ void main() async {
             ctx.read<DeviceProvider>().onSmokeAlarmDetected = provider.triggerSmokeAlarm;
             return provider;
           },
-        ),
-        Provider(
-          create: (_) => FridayService(settings: settingsProvider.settings),
-        ),
-        ChangeNotifierProxyProvider<DeviceProvider, AlarmProvider>(
-          create: (ctx) => AlarmProvider(
-            alarmService: alarmService,
-            deviceProvider: ctx.read<DeviceProvider>(),
-          ),
-          update: (ctx, device, previous) => previous!,
         ),
       ],
       child: const OpenClawApp(),

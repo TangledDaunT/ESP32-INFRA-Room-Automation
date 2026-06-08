@@ -1,8 +1,6 @@
 // lib/models/friday_command.dart
 // Model for Friday voice command responses
 
-import 'dart:convert';
-
 /// Represents a voice command sent to Friday
 class FridayCommand {
   final String id;

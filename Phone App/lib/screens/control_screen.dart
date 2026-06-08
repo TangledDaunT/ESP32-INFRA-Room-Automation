@@ -242,14 +242,19 @@ class _ControlScreenState extends State<ControlScreen>
                                       .then((_) => _resetIdleTimer());
                                 },
                               ),
-                              _BottomActionButton(
-                                icon: Symbols.graphic_eq,
-                                label: 'MUSIC',
-                                onTap: () {
-                                  _resetIdleTimer();
-                                  device.toggleMusicMode();
+                              Selector<DeviceProvider, bool>(
+                                selector: (context, provider) => provider.musicMode,
+                                builder: (context, musicMode, child) {
+                                  return _BottomActionButton(
+                                    icon: Symbols.graphic_eq,
+                                    label: 'MUSIC',
+                                    onTap: () {
+                                      _resetIdleTimer();
+                                      context.read<DeviceProvider>().toggleMusicMode();
+                                    },
+                                    isActive: musicMode,
+                                  );
                                 },
-                                isActive: state.musicMode,
                               ),
                               // Friday voice button
                               Consumer<FridayService>(
@@ -260,9 +265,9 @@ class _ControlScreenState extends State<ControlScreen>
                                         : Symbols.mic_none,
                                     label: friday.isRecording ? 'STOP' : 'FRIDAY',
                                     isActive: friday.isRecording,
-                                    onTap: () {
+                                    onTap: () async {
                                       _resetIdleTimer();
-                                      friday.toggleRecording();
+                                      await friday.toggleRecording();
                                     },
                                   );
                                 },
@@ -314,20 +319,22 @@ class _ControlScreenState extends State<ControlScreen>
 
   // Show sleep mode confirmation dialog
   void _showSleepConfirmation(BuildContext context, DeviceProvider device) {
+    final hours = device.settings.sleepAlarmHours;
+    final minutes = device.settings.sleepAlarmMinutes;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.darkGrey,
+        backgroundColor: AppColors.black,
         title: const Text(
           'Enter Sleep Mode?',
           style: TextStyle(color: AppColors.white90),
         ),
-        content: const Text(
+        content: Text(
           'This will:\n'
           '• Turn off RGB and backup light\n'
           '• Set laptop brightness to 0\n'
-          '• Set alarm for 5:30 hours from now',
-          style: TextStyle(color: AppColors.white60, fontSize: 14),
+          '• Set alarm for ${hours}h ${minutes}m from now',
+          style: const TextStyle(color: AppColors.white60, fontSize: 14),
         ),
         actions: [
           TextButton(
@@ -338,13 +345,13 @@ class _ControlScreenState extends State<ControlScreen>
             ),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop();
-              device.activateSleepMode();
+              await device.activateSleepMode();
             },
             child: const Text(
               'CONFIRM',
-              style: TextStyle(color: AppColors.accent),
+              style: TextStyle(color: AppColors.white90),
             ),
           ),
         ],
@@ -373,7 +380,9 @@ class _BottomActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Padding(
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+        alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -396,48 +405,7 @@ class _BottomActionButton extends StatelessWidget {
   }
 }
 
-class _BottomActionButton extends StatelessWidget {
-  const _BottomActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.isActive = false,
-  });
 
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool isActive;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isActive ? AppColors.white90 : AppColors.white60;
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: color,
-              weight: isActive ? 400 : 300,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: AppTextStyles.labelSM(color: color),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ── Clap detection visual feedback ──────────────────────────
 class _ClapFeedbackOverlay extends StatelessWidget {
