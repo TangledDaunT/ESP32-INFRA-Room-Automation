@@ -1,0 +1,23 @@
+[Unit]
+Description=Friday Integration Server for OpenClaw
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/shreyansh/.openclaw/workspace/scripts/friday_integration_server.py --port 41263
+Restart=always
+RestartSec=5
+Environment="PYTHONUNBUFFERED=1"
+
+# Run as user (not root)
+User=shreyansh
+Group=shreyansh
+
+# Working directory
+WorkingDirectory=/home/shreyansh/.openclaw/workspace/scripts
+
+# Create necessary directories
+ExecStartPre=/bin/mkdir -p /home/shreyansh/.friday/recordings /home/shreyansh/.friday/logs
+
+[Install]
+WantedBy=default.target
