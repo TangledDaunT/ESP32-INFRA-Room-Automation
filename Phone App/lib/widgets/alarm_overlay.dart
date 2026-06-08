@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../models/alarm_model.dart';
 import '../providers/alarm_provider.dart';
 import '../theme.dart';
 
@@ -81,13 +82,16 @@ class _AlarmOverlayState extends State<AlarmOverlay>
   Widget build(BuildContext context) {
     final alarm = context.read<AlarmProvider>();
     final firingAlarm = alarm.firingAlarm;
+    final isSmokeAlarm = firingAlarm?.kind == AlarmKind.smoke;
     final size = MediaQuery.of(context).size;
     final clockFontSize = (size.height * 0.52).clamp(80.0, 320.0);
 
     final hourText = DateFormat('HH').format(_now);
     final minText = DateFormat('mm').format(_now);
     final label =
-        (firingAlarm?.label.isNotEmpty ?? false) ? firingAlarm!.label : 'ALARM';
+      (firingAlarm?.label.isNotEmpty ?? false)
+        ? firingAlarm!.label
+        : (isSmokeAlarm ? 'SMOKE' : 'ALARM');
 
     return Material(
       color: Colors.transparent,
@@ -179,27 +183,24 @@ class _AlarmOverlayState extends State<AlarmOverlay>
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Snooze button
-                      _AlarmButton(
-                        label: 'SNOOZE',
-                        sublabel: '5 MIN',
-                        color: AppColors.white90,
-                        borderColor: AppColors.white40,
-                        onTap: () =>
-                            context.read<AlarmProvider>().snooze(),
-                      ),
+                      if (!isSmokeAlarm) ...[
+                        _AlarmButton(
+                          label: 'SNOOZE',
+                          sublabel: '5 MIN',
+                          color: AppColors.white90,
+                          borderColor: AppColors.white40,
+                          onTap: () => context.read<AlarmProvider>().snooze(),
+                        ),
+                        SizedBox(width: size.width * 0.04),
+                      ],
 
-                      SizedBox(width: size.width * 0.04),
-
-                      // Quit button (red)
                       _AlarmButton(
-                        label: 'QUIT',
-                        sublabel: 'ALARM',
+                        label: 'DISMISS',
+                        sublabel: isSmokeAlarm ? 'SMOKE' : 'ALARM',
                         color: _red,
                         borderColor: _redGlow,
                         isDestructive: true,
-                        onTap: () =>
-                            context.read<AlarmProvider>().dismiss(),
+                        onTap: () => context.read<AlarmProvider>().dismiss(),
                       ),
                     ],
                   ),

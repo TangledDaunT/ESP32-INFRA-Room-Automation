@@ -18,8 +18,8 @@ class AudioChunkMsg extends IsolateMsg {
 }
 
 class UpdateSettingsMsg extends IsolateMsg {
-  final double sensitivity;
-  UpdateSettingsMsg(this.sensitivity);
+  final Map<String, dynamic> settings;
+  UpdateSettingsMsg(this.settings);
 }
 
 /// Messages received from the isolate
@@ -73,7 +73,7 @@ class ClapDetector {
         await broadcastPort.first as SendPort; // First message is SendPort
 
     // Send initial settings to isolate
-    _sendPort?.send(UpdateSettingsMsg(clapDbThreshold));
+    _sendPort?.send(UpdateSettingsMsg({'clapDbThreshold': clapDbThreshold, 'clapWindowMs': clapWindowMs}));
 
     broadcastPort.listen((message) {
       if (message is ClapDetectedMsg) {
@@ -106,8 +106,8 @@ class ClapDetector {
     return true;
   }
 
-  void updateSettings(double sensitivity) {
-    _sendPort?.send(UpdateSettingsMsg(sensitivity));
+  void updateSettings(Map<String, dynamic> settings) {
+    _sendPort?.send(UpdateSettingsMsg(settings));
   }
 
   void _handleSingleClap() {
@@ -151,6 +151,7 @@ class ClapDetector {
 
     final List<int> audioBuffer = [];
     const int frameSize = 1024;
+    const int sampleRate = 16000;
 
     // Rolling noise floor (last 2 seconds = ~31 frames)
     final List<double> rmsHistory = [];
@@ -159,10 +160,29 @@ class ClapDetector {
     // State for clap validation
     int cooldownFrames = 0; // Prevent rapid triggers
     double dbThreshold = 15.0; // Default matching AppSettings
+    double clapMinFreqKhz = 2.0;
+    double clapMaxFreqKhz = 8.0;
+    int clapMinAttackMs = 1;
+    int clapMaxDurationMs = 150;
+    double clapEnergyRatio = 3.0;
+    int clapCooldownMs = 2000;
+    bool clapHighPassEnabled = true;
+    final int frameDurationMs = ((frameSize / sampleRate) * 1000).round();
+    int requiredConsecutive = 1;
 
     receivePort.listen((message) {
       if (message is UpdateSettingsMsg) {
-        dbThreshold = message.sensitivity;
+        final s = message.settings;
+        if (s.containsKey('clapDbThreshold')) dbThreshold = (s['clapDbThreshold'] ?? dbThreshold).toDouble();
+        if (s.containsKey('clapMinFreqKhz')) clapMinFreqKhz = (s['clapMinFreqKhz'] ?? clapMinFreqKhz).toDouble();
+        if (s.containsKey('clapMaxFreqKhz')) clapMaxFreqKhz = (s['clapMaxFreqKhz'] ?? clapMaxFreqKhz).toDouble();
+        if (s.containsKey('clapMinAttackMs')) clapMinAttackMs = s['clapMinAttackMs'] ?? clapMinAttackMs;
+        if (s.containsKey('clapMaxDurationMs')) clapMaxDurationMs = s['clapMaxDurationMs'] ?? clapMaxDurationMs;
+        if (s.containsKey('clapEnergyRatio')) clapEnergyRatio = (s['clapEnergyRatio'] ?? clapEnergyRatio).toDouble();
+        if (s.containsKey('clapCooldownMs')) clapCooldownMs = s['clapCooldownMs'] ?? clapCooldownMs;
+        if (s.containsKey('clapHighPassEnabled')) clapHighPassEnabled = s['clapHighPassEnabled'] ?? clapHighPassEnabled;
+        // Convert cooldown ms to frames
+        cooldownFrames =  (clapCooldownMs / (frameSize / sampleRate * 1000)).round();
       } else if (message is AudioChunkMsg) {
         // Convert Uint8List (bytes) to 16-bit PCM samples
         final bytes = message.chunk;
@@ -187,7 +207,7 @@ class ClapDetector {
 
           if (cooldownFrames > 0) cooldownFrames--;
 
-          // 1. RMS Calculation
+            // 1. RMS Calculation
           double sumSquares = 0;
           for (var sample in frame) {
             sumSquares += (sample * sample);
@@ -206,37 +226,65 @@ class ClapDetector {
 
           final noiseFloor =
               rmsHistory.reduce((a, b) => a + b) / rmsHistory.length;
-
-          // 2. Spike Detection
-          // Convert dbThreshold setting to linear ratio.
+          // 2. Adaptive threshold: combine ratio + absolute floor
           final double ratio = pow(10.0, dbThreshold / 20.0).toDouble();
-          
-          if (rms > noiseFloor * ratio && rms > 800) {
-            // 3. FFT Frequency Filtering
-            final floatFrame = Float64List(frameSize);
+          final double dynamicThreshold = noiseFloor * ratio + 200.0; // absolute floor
+
+          if (rms > dynamicThreshold) {
+            // 3. Pre-processing: optional high-pass to remove fan/EMI
+            Float64List floatFrame = Float64List(frameSize);
             for (int i = 0; i < frameSize; i++) {
               floatFrame[i] = frame[i].toDouble();
             }
 
-            // Using FFTea FFT directly
+            if (clapHighPassEnabled) {
+              // simple 1st-order high-pass (per-sample)
+              double hpPrevInput = 0.0;
+              double hpPrevOutput = 0.0;
+              const double hpAlpha = 0.95; // tuned for ~100Hz cutoff at 16kHz
+              for (int i = 0; i < frameSize; i++) {
+                final input = floatFrame[i];
+                final output = hpAlpha * (hpPrevOutput + input - hpPrevInput);
+                hpPrevInput = input;
+                hpPrevOutput = output;
+                floatFrame[i] = output;
+              }
+            }
+
+            // 4. FFT and band energy calculation
             final fft = FFT(frameSize);
             final spectrum = fft.realFft(floatFrame);
             final magnitudes = spectrum.magnitudes();
 
-            double lowEnergy = 0;
-            double clapEnergy = 0;
+            final int clapBandStart = ((clapMinFreqKhz * 1000) * frameSize / sampleRate).round();
+            final int clapBandEnd = ((clapMaxFreqKhz * 1000) * frameSize / sampleRate).round();
+            final int lowNoiseBand = ((500) * frameSize / sampleRate).round();
 
-            for (int i = 0; i < 32; i++) {
-              lowEnergy += magnitudes[i];
-            }
-            for (int i = 128; i < 256; i++) {
-              clapEnergy += magnitudes[i];
+            double clapEnergy = 0.0;
+            double lowEnergy = 0.0;
+            double totalEnergy = 0.0;
+            for (int i = 0; i < magnitudes.length; i++) {
+              final v = magnitudes[i];
+              totalEnergy += v;
+              if (i <= lowNoiseBand) lowEnergy += v;
+              if (i >= clapBandStart && i <= clapBandEnd) clapEnergy += v;
             }
 
-            // 4. Multi-Condition Validation
-            if (clapEnergy > lowEnergy * 0.8) {
-              sendPort.send(ClapDetectedMsg());
-              cooldownFrames = 8; // ~512ms cooldown (8 * 64ms)
+            final clapRatio = clapEnergy / (lowEnergy + 1.0);
+
+            // 5. Attack-speed check (simple derivative)
+            // store previous RMS in static-like closure by using a map holder
+            // For simplicity, keep previousRms local static via a list
+            // We will reuse rmsHistory last value as previous
+            final double previousRms = rmsHistory.isNotEmpty ? rmsHistory.last : 0.0;
+            final double attackSpeed = rms - previousRms;
+
+            if (attackSpeed > 0 && clapRatio >= clapEnergyRatio) {
+              // Duration check: approximate via frameDurationMs
+              if (frameDurationMs <= clapMaxDurationMs) {
+                sendPort.send(ClapDetectedMsg());
+                cooldownFrames = (clapCooldownMs / (frameDurationMs)).round();
+              }
             }
           }
         }

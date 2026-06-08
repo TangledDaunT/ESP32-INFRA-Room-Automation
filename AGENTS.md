@@ -3,10 +3,12 @@
 Agent instructions for this workspace (ESP32 PlatformIO firmware + Flutter Android control app).
 
 ## Scope
-- Firmware lives in `src/` and is built with PlatformIO.
-- Mobile app lives in `Phone App/` and is built with Flutter.
+- Primary firmware lives in `src/` and is built with PlatformIO.
+- Primary mobile app lives in `Phone App/` and is built with Flutter.
+- Treat `OpenClawFirmware/`, `RoomControl/`, root `esp32_firmware/`, and `Phone App/esp32_firmware/` as legacy or alternate trees unless a task explicitly targets them.
 
 ## Read First
+- Project context and long-form system notes: [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) and [DOCS.md](DOCS.md)
 - App feature and protocol details: [Phone App/README.md](Phone%20App/README.md)
 - Firmware runtime orchestration: [src/main.cpp](src/main.cpp)
 - Hardware and timing constants: [src/config.h](src/config.h)
@@ -35,6 +37,7 @@ Run inside `Phone App/`.
 - `flutter pub get`
 - `flutter run`
 - `flutter test`
+- If you intentionally work in `Phone App/esp32_firmware/`, use its local `platformio.ini` instead of the root firmware target.
 
 ## Architecture Boundaries
 - Firmware startup order is coordinated in `setup()` in [src/main.cpp](src/main.cpp): hardware -> restore persisted state -> automation -> network -> websocket -> sensor task.
@@ -84,6 +87,8 @@ Run inside `Phone App/`.
 - **Communications:** Verify changes over all transport paths (MQTT, BLE, WebSocket, OpenClaw HTTP) to avoid feedback loops.
 - **PRs & commits:** Keep changes small and focused. Include build verification steps in PR description (how to run `pio run`, where to run Flutter tests).
 - **When unsure:** Link to relevant files in this document and ask for clarification before modifying hardware-related timing or NVS keys.
+
+- **Copilot note:** Prefer updating `AGENTS.md` over creating `.github/copilot-instructions.md`. If a GitHub-specific file is required, keep it minimal and link back to this file so guidance stays centralized.
 
 ---
 

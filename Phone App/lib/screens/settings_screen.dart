@@ -25,6 +25,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _passwordController;
   late TextEditingController _openclawController;
   late TextEditingController _bleController;
+  late TextEditingController _historyController;
 
   bool _showPassword = false;
   bool _advancedExpanded = false;
@@ -42,6 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _passwordController = TextEditingController(text: _draft.mqttPassword);
     _openclawController = TextEditingController(text: _draft.openclawBaseUrl);
     _bleController = TextEditingController(text: _draft.bleDeviceName);
+    _historyController = TextEditingController(text: _draft.historySyncUrl);
   }
 
   @override
@@ -52,6 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _passwordController.dispose();
     _openclawController.dispose();
     _bleController.dispose();
+    _historyController.dispose();
     super.dispose();
   }
 
@@ -510,6 +513,121 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                             trailing:
                                 _buildTapValue('${_draft.clapWindowMs} MS'),
+                          ),
+                          SettingsRow(
+                            label: 'PRESENCE AUTO LIGHT',
+                            onTap: () {
+                              setState(() {
+                                _draft.presenceAutoRestoreLight = !_draft.presenceAutoRestoreLight;
+                                _dirty = true;
+                              });
+                            },
+                            trailing: _buildTapValue(
+                              _draft.presenceAutoRestoreLight ? 'ENABLED' : 'DISABLED',
+                            ),
+                          ),
+                          SettingsRow(
+                            label: 'HISTORY SYNC',
+                            onTap: () {
+                              setState(() {
+                                _draft.historySyncEnabled = !_draft.historySyncEnabled;
+                                _dirty = true;
+                              });
+                            },
+                            trailing: _buildTapValue(
+                              _draft.historySyncEnabled ? 'ENABLED' : 'DISABLED',
+                            ),
+                          ),
+                          SettingsRow(
+                            label: 'LAPTOP LOG URL',
+                            trailing: _buildTextField(
+                              controller: _historyController,
+                              onChanged: (value) {
+                                _draft.historySyncUrl = value;
+                                _markDirty();
+                              },
+                            ),
+                          ),
+                          SettingsRow(
+                            label: 'HIGH-PASS FILTER',
+                            onTap: () {
+                              setState(() {
+                                _draft.clapHighPassEnabled = !_draft.clapHighPassEnabled;
+                                _dirty = true;
+                              });
+                            },
+                            trailing: _buildTapValue(_draft.clapHighPassEnabled ? 'ENABLED' : 'DISABLED'),
+                          ),
+                          SettingsRow(
+                            label: 'CLAP FREQ MIN',
+                            onTap: () => _pickNumber(
+                              title: 'CLAP FREQ MIN (Hz)',
+                              initial: (_draft.clapMinFreqKhz * 1000).round(),
+                              min: 1000,
+                              max: 8000,
+                              onSelected: (value) => _draft.clapMinFreqKhz = value / 1000.0,
+                              suffix: ' Hz',
+                            ),
+                            trailing: _buildTapValue('${(_draft.clapMinFreqKhz * 1000).round()} Hz'),
+                          ),
+                          SettingsRow(
+                            label: 'CLAP FREQ MAX',
+                            onTap: () => _pickNumber(
+                              title: 'CLAP FREQ MAX (Hz)',
+                              initial: (_draft.clapMaxFreqKhz * 1000).round(),
+                              min: 2000,
+                              max: 16000,
+                              onSelected: (value) => _draft.clapMaxFreqKhz = value / 1000.0,
+                              suffix: ' Hz',
+                            ),
+                            trailing: _buildTapValue('${(_draft.clapMaxFreqKhz * 1000).round()} Hz'),
+                          ),
+                          SettingsRow(
+                            label: 'MIN ATTACK (ms)',
+                            onTap: () => _pickNumber(
+                              title: 'MIN ATTACK (ms)',
+                              initial: _draft.clapMinAttackMs,
+                              min: 1,
+                              max: 50,
+                              onSelected: (value) => _draft.clapMinAttackMs = value,
+                              suffix: ' ms',
+                            ),
+                            trailing: _buildTapValue('${_draft.clapMinAttackMs} MS'),
+                          ),
+                          SettingsRow(
+                            label: 'MAX DURATION (ms)',
+                            onTap: () => _pickNumber(
+                              title: 'MAX DURATION (ms)',
+                              initial: _draft.clapMaxDurationMs,
+                              min: 50,
+                              max: 500,
+                              onSelected: (value) => _draft.clapMaxDurationMs = value,
+                              suffix: ' ms',
+                            ),
+                            trailing: _buildTapValue('${_draft.clapMaxDurationMs} MS'),
+                          ),
+                          SettingsRow(
+                            label: 'ENERGY RATIO',
+                            onTap: () => _pickNumber(
+                              title: 'ENERGY RATIO',
+                              initial: _draft.clapEnergyRatio.round(),
+                              min: 1,
+                              max: 10,
+                              onSelected: (value) => _draft.clapEnergyRatio = value.toDouble(),
+                            ),
+                            trailing: _buildTapValue('${_draft.clapEnergyRatio}x'),
+                          ),
+                          SettingsRow(
+                            label: 'CLAP COOLDOWN',
+                            onTap: () => _pickNumber(
+                              title: 'CLAP COOLDOWN (ms)',
+                              initial: _draft.clapCooldownMs,
+                              min: 200,
+                              max: 5000,
+                              onSelected: (value) => _draft.clapCooldownMs = value,
+                              suffix: ' ms',
+                            ),
+                            trailing: _buildTapValue('${_draft.clapCooldownMs} MS'),
                           ),
                           GestureDetector(
                             onTap: () {

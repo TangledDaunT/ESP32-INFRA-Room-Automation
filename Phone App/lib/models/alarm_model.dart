@@ -1,6 +1,8 @@
 // lib/models/alarm_model.dart
 import 'dart:convert';
 
+enum AlarmKind { scheduled, smoke }
+
 /// Immutable alarm definition.
 class AlarmModel {
   final String id;
@@ -8,6 +10,7 @@ class AlarmModel {
   final int minute;
   final String label;
   final bool isEnabled;
+  final AlarmKind kind;
 
   const AlarmModel({
     required this.id,
@@ -15,6 +18,7 @@ class AlarmModel {
     required this.minute,
     this.label = '',
     this.isEnabled = true,
+    this.kind = AlarmKind.scheduled,
   });
 
   AlarmModel copyWith({
@@ -23,6 +27,7 @@ class AlarmModel {
     int? minute,
     String? label,
     bool? isEnabled,
+    AlarmKind? kind,
   }) {
     return AlarmModel(
       id: id ?? this.id,
@@ -30,6 +35,7 @@ class AlarmModel {
       minute: minute ?? this.minute,
       label: label ?? this.label,
       isEnabled: isEnabled ?? this.isEnabled,
+      kind: kind ?? this.kind,
     );
   }
 
@@ -39,6 +45,7 @@ class AlarmModel {
         'minute': minute,
         'label': label,
         'isEnabled': isEnabled,
+        'kind': kind.name,
       };
 
   factory AlarmModel.fromJson(Map<String, dynamic> json) => AlarmModel(
@@ -47,6 +54,10 @@ class AlarmModel {
         minute: json['minute'] as int,
         label: (json['label'] as String?) ?? '',
         isEnabled: (json['isEnabled'] as bool?) ?? true,
+        kind: AlarmKind.values.firstWhere(
+          (value) => value.name == (json['kind'] as String? ?? AlarmKind.scheduled.name),
+          orElse: () => AlarmKind.scheduled,
+        ),
       );
 
   /// Human-readable time: "07:30"

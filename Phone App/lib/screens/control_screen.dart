@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/device_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/friday_service.dart';
 import '../theme.dart';
 import '../widgets/brightness_slider.dart';
 import '../widgets/device_button.dart';
@@ -212,7 +213,7 @@ class _ControlScreenState extends State<ControlScreen>
                             ),
                           ),
 
-                          // Settings, Alarm, & Music Mode icons — symmetric, bottom center
+                          // Settings, Alarm, Music, Friday, & Sleep buttons
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -232,6 +233,16 @@ class _ControlScreenState extends State<ControlScreen>
                                 },
                               ),
                               _BottomActionButton(
+                                icon: Symbols.history,
+                                label: 'LOGS',
+                                onTap: () {
+                                  _idleTimer?.cancel();
+                                  Navigator.of(context)
+                                      .pushNamed('/activity')
+                                      .then((_) => _resetIdleTimer());
+                                },
+                              ),
+                              _BottomActionButton(
                                 icon: Symbols.graphic_eq,
                                 label: 'MUSIC',
                                 onTap: () {
@@ -239,6 +250,31 @@ class _ControlScreenState extends State<ControlScreen>
                                   device.toggleMusicMode();
                                 },
                                 isActive: state.musicMode,
+                              ),
+                              // Friday voice button
+                              Consumer<FridayService>(
+                                builder: (context, friday, child) {
+                                  return _BottomActionButton(
+                                    icon: friday.isRecording 
+                                        ? Symbols.mic 
+                                        : Symbols.mic_none,
+                                    label: friday.isRecording ? 'STOP' : 'FRIDAY',
+                                    isActive: friday.isRecording,
+                                    onTap: () {
+                                      _resetIdleTimer();
+                                      friday.toggleRecording();
+                                    },
+                                  );
+                                },
+                              ),
+                              // Sleep mode button
+                              _BottomActionButton(
+                                icon: Symbols.bedtime,
+                                label: 'SLEEP',
+                                onTap: () {
+                                  _resetIdleTimer();
+                                  _showSleepConfirmation(context, device);
+                                },
                               ),
                             ],
                           ),
@@ -273,6 +309,89 @@ class _ControlScreenState extends State<ControlScreen>
         visible: device.showClapIndicator,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
+  }
+
+  // Show sleep mode confirmation dialog
+  void _showSleepConfirmation(BuildContext context, DeviceProvider device) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.darkGrey,
+        title: const Text(
+          'Enter Sleep Mode?',
+          style: TextStyle(color: AppColors.white90),
+        ),
+        content: const Text(
+          'This will:\n'
+          '• Turn off RGB and backup light\n'
+          '• Set laptop brightness to 0\n'
+          '• Set alarm for 5:30 hours from now',
+          style: TextStyle(color: AppColors.white60, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'CANCEL',
+              style: TextStyle(color: AppColors.white60),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              device.activateSleepMode();
+            },
+            child: const Text(
+              'CONFIRM',
+              style: TextStyle(color: AppColors.accent),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BottomActionButton extends StatelessWidget {
+  const _BottomActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isActive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isActive ? AppColors.white90 : AppColors.white60;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: color,
+              weight: isActive ? 400 : 300,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: AppTextStyles.labelSM(color: color),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

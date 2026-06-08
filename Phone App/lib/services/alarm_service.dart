@@ -1,9 +1,12 @@
 // lib/services/alarm_service.dart
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:http/http.dart' as http;
 import '../models/alarm_model.dart';
+import '../models/app_settings.dart';
 
 typedef AlarmFiredCallback = void Function(AlarmModel alarm);
 
@@ -13,8 +16,10 @@ typedef AlarmFiredCallback = void Function(AlarmModel alarm);
 /// - Persists alarms to SharedPreferences as a JSON list.
 /// - Plays the bundled beep sound on loop when an alarm fires.
 /// - Supports snooze (5 minutes) and dismiss.
+/// - Syncs with laptop for dual-device alarm playback.
 class AlarmService {
   AlarmFiredCallback? onAlarmFired;
+  AppSettings? _settings;
 
   final List<AlarmModel> _alarms = [];
   Timer? _checkTimer;
@@ -27,6 +32,9 @@ class AlarmService {
   // Track last-fired alarm id + minute to prevent re-firing same minute
   String? _lastFiredId;
   int? _lastFiredMinute; // encoded as hour*60+minute
+
+  // Track current firing alarm for sync
+  AlarmModel? _currentFiringAlarm;
 
   List<AlarmModel> get alarms => List.unmodifiable(_alarms);
   bool get isFiring => _isFiring;
@@ -68,6 +76,16 @@ class AlarmService {
   void dispose() {
     stop();
     _player.dispose();
+  }
+
+  Future<void> startAudioLoop() async {
+    _player.setReleaseMode(ReleaseMode.loop);
+    _player.setVolume(1.0);
+    await _player.play(AssetSource('audio/alarm_beep.wav'));
+  }
+
+  Future<void> stopAudio() async {
+    await _player.stop();
   }
 
   // ── CRUD ───────────────────────────────────────────────────
@@ -127,36 +145,80 @@ class AlarmService {
 
   void _fire(AlarmModel alarm) {
     _isFiring = true;
-    _startAudio();
+    _currentFiringAlarm = alarm;
+    startAudioLoop();
+    
+    // Sync with laptop if enabled
+    _syncAlarmToLaptop(alarm, 'trigger');
+    
     onAlarmFired?.call(alarm);
+  }
+
+  // ── Laptop Sync ───────────────────────────────────────
+
+  /// Set settings reference for laptop sync
+  void updateSettings(AppSettings settings) {
+    _settings = settings;
+  }
+
+  /// Sync alarm event to laptop
+  Future<void> _syncAlarmToLaptop(AlarmModel alarm, String action) async {
+    if (_settings == null) return;
+    if (!_settings!.laptopAlarmSync) return;
+
+    try {
+      final url = '${_settings!.fridayBaseUrl}/api/alarm/$action';
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${_settings!.fridayHookToken}',
+        },
+        body: jsonEncode({
+          'alarm_id': alarm.id,
+          'label': alarm.label,
+          'action': action,
+          'timestamp': DateTime.now().toIso8601String(),
+        }),
+      ).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        debugPrint('[AlarmService] Laptop sync successful: $action');
+      } else {
+        debugPrint('[AlarmService] Laptop sync failed: ${response.statusCode}');
+      }
+    } on TimeoutException {
+      debugPrint('[AlarmService] Laptop sync timeout');
+    } catch (e) {
+      debugPrint('[AlarmService] Laptop sync error: $e');
+    }
   }
 
   // ── Snooze / Dismiss ───────────────────────────────────────
 
   void snooze(AlarmModel alarm) {
-    _stopAudio();
+    stopAudio();
     _isFiring = false;
     _snoozeTimer?.cancel();
+    
+    // Notify laptop
+    _syncAlarmToLaptop(alarm, 'snooze');
+    
     _snoozeTimer = Timer(const Duration(minutes: 5), () {
       _fire(alarm);
     });
   }
 
   void dismiss() {
-    _stopAudio();
+    stopAudio();
     _isFiring = false;
+    
+    // Notify laptop
+    if (_currentFiringAlarm != null) {
+      _syncAlarmToLaptop(_currentFiringAlarm!, 'dismiss');
+    }
+    
     _snoozeTimer?.cancel();
-  }
-
-  // ── Audio ──────────────────────────────────────────────────
-
-  void _startAudio() {
-    _player.setReleaseMode(ReleaseMode.loop);
-    _player.setVolume(1.0);
-    _player.play(AssetSource('audio/alarm_beep.wav'));
-  }
-
-  void _stopAudio() {
-    _player.stop();
+    _currentFiringAlarm = null;
   }
 }

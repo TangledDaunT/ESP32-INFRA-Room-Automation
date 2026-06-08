@@ -58,6 +58,25 @@ class AppSettings {
   // ── Clap Detection ───────────────────────────────────
   double clapDbThreshold; // dB above average to count as clap
   int clapWindowMs; // ms window to detect double clap
+  // ── Advanced Clap Detection ──────────────────────────
+  double clapMinFreqKhz; // start of clap band (kHz)
+  double clapMaxFreqKhz; // end of clap band (kHz)
+  int clapMinAttackMs; // minimum attack time (ms)
+  int clapMaxDurationMs; // max clap duration (ms)
+  double clapEnergyRatio; // clap band / low band threshold
+  int clapCooldownMs; // debounce between double-claps (ms)
+  bool clapHighPassEnabled; // enable 100Hz HPF
+  bool presenceAutoRestoreLight;
+  bool historySyncEnabled;
+  String historySyncUrl;
+
+  // ── Friday Integration ────────────────────────────────
+  String fridayBaseUrl; // OpenClaw Gateway URL (e.g. http://192.168.1.15:41262)
+  String fridayHookToken; // Authorization Bearer token
+  bool laptopBrightnessControl; // Enable laptop brightness sync
+  bool laptopAlarmSync; // Play alarms on laptop too
+  int sleepAlarmHours; // Hours for sleep alarm (default 5)
+  int sleepAlarmMinutes; // Minutes for sleep alarm (default 30)
 
   AppSettings({
     // ── Real ESP32 HTTP endpoint ───────────────────────────────
@@ -97,6 +116,23 @@ class AppSettings {
     this.idleTimeoutSeconds = 30,
     this.clapDbThreshold = 8.0,
     this.clapWindowMs = 1500,
+    this.clapMinFreqKhz = 2.0,
+    this.clapMaxFreqKhz = 8.0,
+    this.clapMinAttackMs = 1,
+    this.clapMaxDurationMs = 150,
+    this.clapEnergyRatio = 3.0,
+    this.clapCooldownMs = 2000,
+    this.clapHighPassEnabled = true,
+    this.presenceAutoRestoreLight = true,
+    this.historySyncEnabled = false,
+    this.historySyncUrl = '',
+    // Friday defaults
+    this.fridayBaseUrl = 'http://192.168.1.15:41262',
+    this.fridayHookToken = '',
+    this.laptopBrightnessControl = true,
+    this.laptopAlarmSync = true,
+    this.sleepAlarmHours = 5,
+    this.sleepAlarmMinutes = 30,
   });
 
   Map<String, dynamic> toJson() => {
@@ -134,6 +170,22 @@ class AppSettings {
         'idleTimeoutSeconds': idleTimeoutSeconds,
         'clapDbThreshold': clapDbThreshold,
         'clapWindowMs': clapWindowMs,
+        'clapMinFreqKhz': clapMinFreqKhz,
+        'clapMaxFreqKhz': clapMaxFreqKhz,
+        'clapMinAttackMs': clapMinAttackMs,
+        'clapMaxDurationMs': clapMaxDurationMs,
+        'clapEnergyRatio': clapEnergyRatio,
+        'clapCooldownMs': clapCooldownMs,
+        'clapHighPassEnabled': clapHighPassEnabled,
+        'presenceAutoRestoreLight': presenceAutoRestoreLight,
+        'historySyncEnabled': historySyncEnabled,
+        'historySyncUrl': historySyncUrl,
+        'fridayBaseUrl': fridayBaseUrl,
+        'fridayHookToken': fridayHookToken,
+        'laptopBrightnessControl': laptopBrightnessControl,
+        'laptopAlarmSync': laptopAlarmSync,
+        'sleepAlarmHours': sleepAlarmHours,
+        'sleepAlarmMinutes': sleepAlarmMinutes,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
@@ -174,6 +226,22 @@ class AppSettings {
         idleTimeoutSeconds: json['idleTimeoutSeconds'] ?? 30,
         clapDbThreshold: (json['clapDbThreshold'] ?? 15.0).toDouble(),
         clapWindowMs: json['clapWindowMs'] ?? 1500,
+        clapMinFreqKhz: (json['clapMinFreqKhz'] ?? 2.0).toDouble(),
+        clapMaxFreqKhz: (json['clapMaxFreqKhz'] ?? 8.0).toDouble(),
+        clapMinAttackMs: json['clapMinAttackMs'] ?? 1,
+        clapMaxDurationMs: json['clapMaxDurationMs'] ?? 150,
+        clapEnergyRatio: (json['clapEnergyRatio'] ?? 3.0).toDouble(),
+        clapCooldownMs: json['clapCooldownMs'] ?? 2000,
+        clapHighPassEnabled: json['clapHighPassEnabled'] ?? true,
+        presenceAutoRestoreLight: json['presenceAutoRestoreLight'] ?? true,
+        historySyncEnabled: json['historySyncEnabled'] ?? false,
+        historySyncUrl: json['historySyncUrl'] ?? '',
+        fridayBaseUrl: json['fridayBaseUrl'] ?? 'http://192.168.1.15:41262',
+        fridayHookToken: json['fridayHookToken'] ?? '',
+        laptopBrightnessControl: json['laptopBrightnessControl'] ?? true,
+        laptopAlarmSync: json['laptopAlarmSync'] ?? true,
+        sleepAlarmHours: json['sleepAlarmHours'] ?? 5,
+        sleepAlarmMinutes: json['sleepAlarmMinutes'] ?? 30,
       );
 
   String toJsonString() => jsonEncode(toJson());

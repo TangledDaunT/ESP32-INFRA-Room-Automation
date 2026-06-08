@@ -15,6 +15,9 @@ The app connects to an ESP32 running the OpenClaw firmware over **WebSocket / HT
 | **Idle / Clock Screen** | OLED-optimised clock, date, sensor HUD — tap anywhere to wake |
 | **Always-On Display** | Screen never sleeps (`WakelockPlus`) |
 | **Double-Clap Automation** | Double clap turns on all devices and ramps RGB to full brightness |
+| **Smoke Alarm** | When MQ-2 crosses the threshold, the app plays an alarm sound, flashes the RGB strip, and exposes a dismiss action |
+| **Activity Log** | Shows commands, sensor events, alarms, and automations inside the app |
+| **Laptop History Sync** | Can POST activity history wirelessly to a receiver running on your Ubuntu laptop |
 | **Music Mode** | RGB brightness reacts live to mic volume (exponential smoothing, 15+ fps via WebSocket) |
 | **Night Mode** | Auto-dims at a configurable time or low-lux threshold |
 | **Sleep Detection** | Lux + MQ-2 + presence + lights-off timer drive a 5-state machine |
@@ -126,6 +129,7 @@ Open the app → tap **SETTINGS** and fill in:
 | **Presence Absence Minutes** | Idle time before "away" mode kicks in |
 | **Sleep Detection Minutes** | Lights-off duration before app declares "sleeping" |
 | **Clap Window (ms)** | Time window for a double-clap to be recognised |
+| **History Sync URL** | Optional Ubuntu receiver URL for saving logs wirelessly, e.g. `http://<laptop-ip>:8765/log` |
 
 Tap **SAVE** — settings are persisted across restarts.
 
@@ -257,6 +261,20 @@ awake ──► nightMode ──► possiblySleeping ──► sleeping ──�
 | `FOREGROUND_SERVICE` | Clap detection runs when app is backgrounded |
 | `WAKE_LOCK` | Screen always on |
 | `INTERNET` | WebSocket + HTTP to ESP32 |
+
+## Wireless History Receiver
+
+Run the lightweight receiver on Ubuntu if you want the app's activity log and remote command history saved on your laptop:
+
+```bash
+python3 tools/history_receiver.py
+```
+
+Then set the app's **History Sync URL** to:
+
+```text
+http://<your-ubuntu-ip>:8765/log
+```
 
 All permissions are requested at runtime on first launch.
 
