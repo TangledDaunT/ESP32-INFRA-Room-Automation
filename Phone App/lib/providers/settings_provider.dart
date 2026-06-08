@@ -21,8 +21,21 @@ class SettingsProvider extends ChangeNotifier {
         _settings = AppSettings();
       }
     }
+    final migrated = _migrateSettings(_settings);
+    if (migrated != null) {
+      _settings = migrated;
+      await prefs.setString(_key, _settings.toJsonString());
+    }
     _loaded = true;
     notifyListeners();
+  }
+
+  AppSettings? _migrateSettings(AppSettings settings) {
+    if (settings.openclawBaseUrl == AppSettings.legacyOpenClawBaseUrl) {
+      return AppSettings.fromJson(settings.toJson())
+        ..openclawBaseUrl = AppSettings.currentOpenClawBaseUrl;
+    }
+    return null;
   }
 
   Future<void> save(AppSettings updated) async {

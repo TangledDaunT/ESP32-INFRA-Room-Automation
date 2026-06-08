@@ -4,11 +4,18 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import 'providers/alarm_provider.dart';
 import 'providers/device_provider.dart';
 import 'providers/settings_provider.dart';
+import 'services/activity_log_service.dart';
+import 'services/alarm_service.dart';
+import 'services/friday_service.dart';
+import 'screens/alarm_screen.dart';
+import 'screens/activity_log_screen.dart';
 import 'screens/control_screen.dart';
 import 'screens/idle_screen.dart';
 import 'screens/settings_screen.dart';
+import 'widgets/alarm_overlay.dart';
 import 'theme.dart';
 
 void main() async {
@@ -26,12 +33,41 @@ void main() async {
   final settingsProvider = SettingsProvider();
   await settingsProvider.load();
 
+  final activityLog = ActivityLogService(settingsProvider.settings);
+  await activityLog.load();
+
+  // Load alarms before app starts
+  final alarmService = AlarmService();
+  await alarmService.load();
+  alarmService.updateSettings(settingsProvider.settings);
+  alarmService.start();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: settingsProvider),
+        ChangeNotifierProvider.value(value: activityLog),
+        Provider.value(value: alarmService),
         ChangeNotifierProvider(
-          create: (_) => DeviceProvider(settingsProvider.settings),
+          create: (_) {
+            final deviceProvider = DeviceProvider(settingsProvider.settings, activityLog);
+            deviceProvider.setAlarmService(alarmService);
+            return deviceProvider;
+          },
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) {
+            final provider = AlarmProvider(
+              alarmService: alarmService,
+              deviceProvider: ctx.read<DeviceProvider>(),
+              activityLog: activityLog,
+            );
+            ctx.read<DeviceProvider>().onSmokeAlarmDetected = provider.triggerSmokeAlarm;
+            return provider;
+          },
+        ),
+        Provider(
+          create: (_) => FridayService(settings: settingsProvider.settings),
         ),
       ],
       child: const OpenClawApp(),
@@ -69,9 +105,19 @@ class OpenClawApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       builder: (context, child) {
-        return ScrollConfiguration(
-          behavior: const _NoGlowScrollBehavior(),
-          child: child ?? const SizedBox.shrink(),
+        return Consumer<AlarmProvider>(
+          builder: (context, alarm, _) {
+            return Stack(
+              children: [
+                ScrollConfiguration(
+                  behavior: const _NoGlowScrollBehavior(),
+                  child: child ?? const SizedBox.shrink(),
+                ),
+                if (alarm.isAlarmFiring)
+                  const AlarmOverlay(),
+              ],
+            );
+          },
         );
       },
       onGenerateRoute: (settings) {
@@ -85,6 +131,16 @@ class OpenClawApp extends StatelessWidget {
             return buildAppRoute(
               settings: settings,
               child: const SettingsScreen(),
+            );
+          case '/alarms':
+            return buildAppRoute(
+              settings: settings,
+              child: const AlarmScreen(),
+            );
+          case '/activity':
+            return buildAppRoute(
+              settings: settings,
+              child: const ActivityLogScreen(),
             );
           case '/':
           default:

@@ -3,15 +3,26 @@
 Agent instructions for this workspace (ESP32 PlatformIO firmware + Flutter Android control app).
 
 ## Scope
-- Firmware lives in `src/` and is built with PlatformIO.
-- Mobile app lives in `Phone App/` and is built with Flutter.
+- Primary firmware lives in `src/` and is built with PlatformIO.
+- Primary mobile app lives in `Phone App/` and is built with Flutter.
+- Treat `OpenClawFirmware/`, `RoomControl/`, root `esp32_firmware/`, and `Phone App/esp32_firmware/` as legacy or alternate trees unless a task explicitly targets them.
 
 ## Read First
+- Project context and long-form system notes: [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) and [DOCS.md](DOCS.md)
 - App feature and protocol details: [Phone App/README.md](Phone%20App/README.md)
 - Firmware runtime orchestration: [src/main.cpp](src/main.cpp)
 - Hardware and timing constants: [src/config.h](src/config.h)
 - App orchestration and lifecycle: [Phone App/lib/main.dart](Phone%20App/lib/main.dart)
 - App integration hub (MQTT/BLE/HTTP/automation): [Phone App/lib/providers/device_provider.dart](Phone%20App/lib/providers/device_provider.dart)
+
+## Phone App Connection Path
+- The Android app resolves the ESP32 base URL from `AppSettings` and uses [Phone App/lib/services/openclaw_service.dart](Phone%20App/lib/services/openclaw_service.dart) as the transport layer.
+- `DeviceProvider` is the app-side control hub: UI actions, clap automation, sleep/wakeup routines, and music mode all funnel into it before they reach the ESP32.
+- Normal control uses HTTP `POST /api/cmd`; state sync uses WebSocket `ws://<host>/ws`.
+- High-frequency brightness updates can go over WebSocket, while normal relay and mode changes prefer HTTP with WebSocket fallback.
+- Keep relay channel mapping consistent with the firmware and app docs: `0=light`, `1=fan`, `2=rgb`, `3=socket`.
+- When changing command payloads or state fields, update the app provider/service and the firmware together; the JSON contract is shared.
+- For protocol details, prefer linking to [Phone App/README.md](Phone%20App/README.md) instead of repeating payload tables here.
 
 ## Build and Run Commands
 Run from workspace root unless noted.
@@ -26,6 +37,7 @@ Run inside `Phone App/`.
 - `flutter pub get`
 - `flutter run`
 - `flutter test`
+- If you intentionally work in `Phone App/esp32_firmware/`, use its local `platformio.ini` instead of the root firmware target.
 
 ## Architecture Boundaries
 - Firmware startup order is coordinated in `setup()` in [src/main.cpp](src/main.cpp): hardware -> restore persisted state -> automation -> network -> websocket -> sensor task.
@@ -75,6 +87,8 @@ Run inside `Phone App/`.
 - **Communications:** Verify changes over all transport paths (MQTT, BLE, WebSocket, OpenClaw HTTP) to avoid feedback loops.
 - **PRs & commits:** Keep changes small and focused. Include build verification steps in PR description (how to run `pio run`, where to run Flutter tests).
 - **When unsure:** Link to relevant files in this document and ask for clarification before modifying hardware-related timing or NVS keys.
+
+- **Copilot note:** Prefer updating `AGENTS.md` over creating `.github/copilot-instructions.md`. If a GitHub-specific file is required, keep it minimal and link back to this file so guidance stays centralized.
 
 ---
 

@@ -44,6 +44,9 @@ dependencies:
   fftea: ^1.5.0+1
   web_socket_channel: ^3.0.3
 
+  # Alarm sound playback
+  audioplayers: ^6.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -51,6 +54,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/audio/
   fonts:
     - family: Manrope
       fonts:
