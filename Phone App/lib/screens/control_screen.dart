@@ -212,41 +212,37 @@ class _ControlScreenState extends State<ControlScreen>
                             ),
                           ),
 
-                          // Settings & Music Mode icons — symmetric, bottom center
+                          // Settings, Alarm, & Music Mode icons — symmetric, bottom center
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              GestureDetector(
+                              _BottomActionButton(
+                                icon: Symbols.settings,
+                                label: 'SETTINGS',
                                 onTap: _openSettings,
-                                behavior: HitTestBehavior.opaque,
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                  child: Icon(
-                                    Symbols.settings,
-                                    size: 14,
-                                    color: AppColors.white10,
-                                    weight: 200,
-                                  ),
-                                ),
                               ),
-                              GestureDetector(
+                              _BottomActionButton(
+                                icon: Symbols.alarm,
+                                label: 'ALARMS',
+                                onTap: () {
+                                  _idleTimer?.cancel();
+                                  Navigator.of(context)
+                                      .pushNamed('/alarms')
+                                      .then((_) => _resetIdleTimer());
+                                },
+                              ),
+                              _BottomActionButton(
+                                icon: Symbols.graphic_eq,
+                                label: 'MUSIC',
                                 onTap: () {
                                   _resetIdleTimer();
                                   device.toggleMusicMode();
                                 },
-                                behavior: HitTestBehavior.opaque,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                  child: Icon(
-                                    Symbols.graphic_eq,
-                                    size: 14,
-                                    color: state.musicMode ? AppColors.white90 : AppColors.white10,
-                                    weight: state.musicMode ? 400 : 200,
-                                  ),
-                                ),
+                                isActive: state.musicMode,
                               ),
                             ],
                           ),
+                          const SizedBox(height: 8),
                         ],
                       ),
                     ),
@@ -277,6 +273,49 @@ class _ControlScreenState extends State<ControlScreen>
         visible: device.showClapIndicator,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
+  }
+}
+
+class _BottomActionButton extends StatelessWidget {
+  const _BottomActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isActive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isActive ? AppColors.white90 : AppColors.white60;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: color,
+              weight: isActive ? 400 : 300,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: AppTextStyles.labelSM(color: color),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

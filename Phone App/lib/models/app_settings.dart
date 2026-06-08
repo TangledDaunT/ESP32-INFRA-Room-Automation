@@ -2,6 +2,9 @@
 import 'dart:convert';
 
 class AppSettings {
+  static const String currentOpenClawBaseUrl = 'http://192.168.1.15';
+  static const String legacyOpenClawBaseUrl = 'http://192.168.1.30';
+
   // ── MQTT ──────────────────────────────────────────────
   String mqttBroker;
   int mqttPort;
@@ -57,7 +60,7 @@ class AppSettings {
   int clapWindowMs; // ms window to detect double clap
 
   AppSettings({
-    // ── Real ESP32 at 192.168.1.30 ────────────────────────────
+    // ── Real ESP32 HTTP endpoint ───────────────────────────────
     // MQTT: HiveMQ Cloud TLS (matches firmware config.h)
     this.mqttBroker = '7c7d7ed342c14133aa64550393a6e17e.s1.eu.hivemq.cloud',
     this.mqttPort = 8883,
@@ -65,7 +68,7 @@ class AppSettings {
     this.mqttPassword = 'Shreyanshesp32',
     this.mqttUseTls = true,
     // HTTP: firmware serves on port 80 (AsyncWebServer, no base path)
-    this.openclawBaseUrl = 'http://192.168.1.30',
+    this.openclawBaseUrl = currentOpenClawBaseUrl,
     this.bleDeviceName = 'OpenClaw_ESP32',
     this.topicFan = 'openclaw/control/fan',
     this.topicLight = 'openclaw/control/light',
@@ -92,7 +95,7 @@ class AppSettings {
     this.wakeUpRampMinutes = 30,
     this.smokeAlarmThreshold = 600.0,
     this.idleTimeoutSeconds = 30,
-    this.clapDbThreshold = 15.0,
+    this.clapDbThreshold = 8.0,
     this.clapWindowMs = 1500,
   });
 
@@ -134,12 +137,13 @@ class AppSettings {
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
-        mqttBroker: json['mqttBroker'] ?? '7c7d7ed342c14133aa64550393a6e17e.s1.eu.hivemq.cloud',
+        mqttBroker: json['mqttBroker'] ??
+            '7c7d7ed342c14133aa64550393a6e17e.s1.eu.hivemq.cloud',
         mqttPort: json['mqttPort'] ?? 8883,
         mqttUsername: json['mqttUsername'] ?? 'shreyanshesp',
         mqttPassword: json['mqttPassword'] ?? 'Shreyanshesp32',
         mqttUseTls: json['mqttUseTls'] ?? true,
-        openclawBaseUrl: json['openclawBaseUrl'] ?? 'http://192.168.1.30',
+        openclawBaseUrl: json['openclawBaseUrl'] ?? currentOpenClawBaseUrl,
         bleDeviceName: json['bleDeviceName'] ?? 'OpenClaw_ESP32',
         topicFan: json['topicFan'] ?? 'openclaw/control/fan',
         topicLight: json['topicLight'] ?? 'openclaw/control/light',

@@ -4,11 +4,15 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import 'providers/alarm_provider.dart';
 import 'providers/device_provider.dart';
 import 'providers/settings_provider.dart';
+import 'screens/alarm_screen.dart';
 import 'screens/control_screen.dart';
 import 'screens/idle_screen.dart';
 import 'screens/settings_screen.dart';
+import 'services/alarm_service.dart';
+import 'widgets/alarm_overlay.dart';
 import 'theme.dart';
 
 void main() async {
@@ -26,12 +30,24 @@ void main() async {
   final settingsProvider = SettingsProvider();
   await settingsProvider.load();
 
+  // Load alarms before app starts
+  final alarmService = AlarmService();
+  await alarmService.load();
+  alarmService.start();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: settingsProvider),
         ChangeNotifierProvider(
           create: (_) => DeviceProvider(settingsProvider.settings),
+        ),
+        ChangeNotifierProxyProvider<DeviceProvider, AlarmProvider>(
+          create: (ctx) => AlarmProvider(
+            alarmService: alarmService,
+            deviceProvider: ctx.read<DeviceProvider>(),
+          ),
+          update: (ctx, device, previous) => previous!,
         ),
       ],
       child: const OpenClawApp(),
@@ -69,9 +85,19 @@ class OpenClawApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       builder: (context, child) {
-        return ScrollConfiguration(
-          behavior: const _NoGlowScrollBehavior(),
-          child: child ?? const SizedBox.shrink(),
+        return Consumer<AlarmProvider>(
+          builder: (context, alarm, _) {
+            return Stack(
+              children: [
+                ScrollConfiguration(
+                  behavior: const _NoGlowScrollBehavior(),
+                  child: child ?? const SizedBox.shrink(),
+                ),
+                if (alarm.isAlarmFiring)
+                  const AlarmOverlay(),
+              ],
+            );
+          },
         );
       },
       onGenerateRoute: (settings) {
@@ -85,6 +111,11 @@ class OpenClawApp extends StatelessWidget {
             return buildAppRoute(
               settings: settings,
               child: const SettingsScreen(),
+            );
+          case '/alarms':
+            return buildAppRoute(
+              settings: settings,
+              child: const AlarmScreen(),
             );
           case '/':
           default:

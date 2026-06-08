@@ -32,6 +32,7 @@ class DeviceProvider extends ChangeNotifier {
   DeviceProvider(this._settings) {
     _openclaw = OpenClawService(_settings);
     _clap = ClapDetector(
+      clapDbThreshold: _settings.clapDbThreshold,
       clapWindowMs: _settings.clapWindowMs,
     );
     _sleep = SleepService(_settings);
@@ -339,6 +340,7 @@ class DeviceProvider extends ChangeNotifier {
     _openclaw.updateSettings(settings);
     _sleep.updateSettings(settings);
     _wakeup.updateSettings(settings);
+    _clap.updateSettings(settings.clapDbThreshold);
 
     notifyListeners();
   }

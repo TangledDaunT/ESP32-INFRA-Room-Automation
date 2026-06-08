@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import 'package:material_symbols_icons/symbols.dart';
 import '../models/device_state.dart';
 import '../providers/device_provider.dart';
 
@@ -417,6 +418,27 @@ class _IdleScreenState extends State<IdleScreen>
               top: 14,
               right: 18,
               child: _buildConnectionDots(deviceState),
+            ),
+
+            // ── Alarm Icon — top-left ───────────────────────
+            Positioned(
+              top: 14,
+              left: 18,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.of(context).pushNamed('/alarms');
+                },
+                behavior: HitTestBehavior.opaque,
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Symbols.alarm,
+                    size: 16,
+                    color: Colors.white30,
+                    weight: 200,
+                  ),
+                ),
+              ),
             ),
           ],
         ),

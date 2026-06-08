@@ -90,6 +90,7 @@ void net_init(CommandHandler cmdHandler) {
 
     // ── OTA ──
     ArduinoOTA.setHostname(WIFI_HOSTNAME);
+    ArduinoOTA.setPassword("openclaw-ota-2024");
     ArduinoOTA.onStart([]() {
         String type = (ArduinoOTA.getCommand() == U_FLASH) ? "firmware" : "filesystem";
         Serial.printf("[OTA] Updating %s...\n", type.c_str());

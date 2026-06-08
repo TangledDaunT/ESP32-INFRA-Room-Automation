@@ -49,9 +49,14 @@ class ClapDetector {
   // Double clap state
   int _clapCount = 0;
   Timer? _clapResetTimer;
+  
+  final double clapDbThreshold;
   final int clapWindowMs;
 
-  ClapDetector({this.clapWindowMs = 1500});
+  ClapDetector({
+    this.clapDbThreshold = 15.0,
+    this.clapWindowMs = 1500,
+  });
 
   bool get isRunning => _isRunning;
 
@@ -66,6 +71,9 @@ class ClapDetector {
     final broadcastPort = _receivePort!.asBroadcastStream();
     _sendPort =
         await broadcastPort.first as SendPort; // First message is SendPort
+
+    // Send initial settings to isolate
+    _sendPort?.send(UpdateSettingsMsg(clapDbThreshold));
 
     broadcastPort.listen((message) {
       if (message is ClapDetectedMsg) {
@@ -96,6 +104,10 @@ class ClapDetector {
 
     _isRunning = true;
     return true;
+  }
+
+  void updateSettings(double sensitivity) {
+    _sendPort?.send(UpdateSettingsMsg(sensitivity));
   }
 
   void _handleSingleClap() {
@@ -146,13 +158,26 @@ class ClapDetector {
 
     // State for clap validation
     int cooldownFrames = 0; // Prevent rapid triggers
+    double dbThreshold = 15.0; // Default matching AppSettings
 
     receivePort.listen((message) {
-      if (message is AudioChunkMsg) {
+      if (message is UpdateSettingsMsg) {
+        dbThreshold = message.sensitivity;
+      } else if (message is AudioChunkMsg) {
         // Convert Uint8List (bytes) to 16-bit PCM samples
         final bytes = message.chunk;
-        final int16List = Int16List.view(
-            bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes ~/ 2);
+        
+        final Int16List int16List;
+        if (bytes.offsetInBytes % 2 == 0) {
+          int16List = Int16List.view(
+              bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes ~/ 2);
+        } else {
+          // If the buffer is not aligned, we make an aligned copy
+          final alignedBytes = Uint8List.fromList(bytes);
+          int16List = Int16List.view(
+              alignedBytes.buffer, 0, alignedBytes.lengthInBytes ~/ 2);
+        }
+        
         audioBuffer.addAll(int16List);
 
         // Process frames
@@ -170,8 +195,6 @@ class ClapDetector {
           final rms = sqrt(sumSquares / frameSize);
 
           // Convert RMS to an approximate decibel value (relative to max 16-bit)
-          // Int16 max is 32767. We map 0 to -inf, max to ~90dB.
-          // For simplicity, a relative 0-100 scale:
           final db = rms > 0 ? 20 * log10(rms) : 0.0;
           sendPort.send(RmsUpdateMsg(db));
 
@@ -185,10 +208,11 @@ class ClapDetector {
               rmsHistory.reduce((a, b) => a + b) / rmsHistory.length;
 
           // 2. Spike Detection
-          // If RMS is suddenly much higher than noise floor (e.g., 4x) and meets minimum absolute energy
-          if (rms > noiseFloor * 4.0 && rms > 1500) {
+          // Convert dbThreshold setting to linear ratio.
+          final double ratio = pow(10.0, dbThreshold / 20.0).toDouble();
+          
+          if (rms > noiseFloor * ratio && rms > 800) {
             // 3. FFT Frequency Filtering
-            // We want to verify that the energy is concentrated in high frequencies (clap)
             final floatFrame = Float64List(frameSize);
             for (int i = 0; i < frameSize; i++) {
               floatFrame[i] = frame[i].toDouble();
@@ -198,11 +222,6 @@ class ClapDetector {
             final fft = FFT(frameSize);
             final spectrum = fft.realFft(floatFrame);
             final magnitudes = spectrum.magnitudes();
-
-            // 16000Hz sample rate. Nyquist is 8000Hz. frameSize is 1024.
-            // Each bin is 8000 / 512 = ~15.625 Hz.
-            // Low band: 0 - 500 Hz (Bins 0 to 32)
-            // Clap band: 2000 - 4000 Hz (Bins 128 to 256)
 
             double lowEnergy = 0;
             double clapEnergy = 0;
@@ -215,11 +234,9 @@ class ClapDetector {
             }
 
             // 4. Multi-Condition Validation
-            // A clap should have significant energy in the high band compared to low band
             if (clapEnergy > lowEnergy * 0.8) {
-              // Needs tuning, claps are broadband but less bassy than speech
               sendPort.send(ClapDetectedMsg());
-              cooldownFrames = 5; // ~300ms cooldown (5 * 64ms)
+              cooldownFrames = 8; // ~512ms cooldown (8 * 64ms)
             }
           }
         }

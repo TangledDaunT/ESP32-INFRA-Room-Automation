@@ -13,6 +13,15 @@ Agent instructions for this workspace (ESP32 PlatformIO firmware + Flutter Andro
 - App orchestration and lifecycle: [Phone App/lib/main.dart](Phone%20App/lib/main.dart)
 - App integration hub (MQTT/BLE/HTTP/automation): [Phone App/lib/providers/device_provider.dart](Phone%20App/lib/providers/device_provider.dart)
 
+## Phone App Connection Path
+- The Android app resolves the ESP32 base URL from `AppSettings` and uses [Phone App/lib/services/openclaw_service.dart](Phone%20App/lib/services/openclaw_service.dart) as the transport layer.
+- `DeviceProvider` is the app-side control hub: UI actions, clap automation, sleep/wakeup routines, and music mode all funnel into it before they reach the ESP32.
+- Normal control uses HTTP `POST /api/cmd`; state sync uses WebSocket `ws://<host>/ws`.
+- High-frequency brightness updates can go over WebSocket, while normal relay and mode changes prefer HTTP with WebSocket fallback.
+- Keep relay channel mapping consistent with the firmware and app docs: `0=light`, `1=fan`, `2=rgb`, `3=socket`.
+- When changing command payloads or state fields, update the app provider/service and the firmware together; the JSON contract is shared.
+- For protocol details, prefer linking to [Phone App/README.md](Phone%20App/README.md) instead of repeating payload tables here.
+
 ## Build and Run Commands
 Run from workspace root unless noted.
 
