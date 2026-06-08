@@ -69,6 +69,13 @@ void main() async {
         Provider(
           create: (_) => FridayService(settings: settingsProvider.settings),
         ),
+        ChangeNotifierProxyProvider<DeviceProvider, AlarmProvider>(
+          create: (ctx) => AlarmProvider(
+            alarmService: alarmService,
+            deviceProvider: ctx.read<DeviceProvider>(),
+          ),
+          update: (ctx, device, previous) => previous!,
+        ),
       ],
       child: const OpenClawApp(),
     ),

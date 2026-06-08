@@ -396,6 +396,49 @@ class _BottomActionButton extends StatelessWidget {
   }
 }
 
+class _BottomActionButton extends StatelessWidget {
+  const _BottomActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isActive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isActive ? AppColors.white90 : AppColors.white60;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: color,
+              weight: isActive ? 400 : 300,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: AppTextStyles.labelSM(color: color),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ── Clap detection visual feedback ──────────────────────────
 class _ClapFeedbackOverlay extends StatelessWidget {
   const _ClapFeedbackOverlay({required this.visible});
