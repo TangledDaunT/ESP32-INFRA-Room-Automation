@@ -392,7 +392,8 @@ class _IdleScreenState extends State<IdleScreen>
                 ClipRRect(
                   borderRadius: BorderRadius.circular(2),
                   child: LinearProgressIndicator(
-                    value: track.progressFraction,
+                    // durationMs == 0 means Last.fm source (no progress data) → indeterminate
+                    value: track.durationMs > 0 ? track.progressFraction : null,
                     minHeight: 2,
                     backgroundColor: AppColors.white08,
                     valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1A6FFF)),

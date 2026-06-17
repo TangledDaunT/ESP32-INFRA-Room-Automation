@@ -1,177 +1,84 @@
 # server/spotify_handler.py
-import json
-import os
-import time
+# Uses Last.fm API instead of Spotify — no OAuth needed, just an API key.
+# Last.fm scrobbles from Spotify iOS automatically when connected in Spotify settings.
 import threading
-import webbrowser
-from pathlib import Path
-from urllib.parse import urlencode, urlparse, parse_qs
+import time
 import requests
 
-SPOTIFY_API_BASE = "https://api.spotify.com/v1"
-SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
-SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
-SCOPES = "user-read-currently-playing user-read-playback-state"
-
-FRIDAY_DIR = Path.home() / ".friday"
-CREDS_FILE = FRIDAY_DIR / "spotify_credentials.json"
-TOKEN_FILE = FRIDAY_DIR / "spotify_token.json"
+LASTFM_API_BASE = "https://ws.audioscrobbler.com/2.0/"
+LASTFM_API_KEY = "b274480a8ca566ecf0b898c66f2193ef"
+LASTFM_USER = "shreyanshiscool"
 
 
 class SpotifyHandler:
-    def __init__(self, redirect_uri: str = "http://localhost:41263/api/spotify/callback"):
-        self._redirect_uri = redirect_uri
-        self._creds = self._load_credentials()
-        self._token_data = self._load_token()
+    """Polls Last.fm for the currently scrobbling track and exposes it
+    via get_now_playing() in the same JSON schema the Flutter app expects."""
+
+    def __init__(self):
         self._cached_track = {"playing": False}
         self._lock = threading.Lock()
         self._poll_thread = None
         self._running = False
 
-    # ── Credential loading ──────────────────────────────────────────────────
-
-    def _load_credentials(self):
-        """Load client_id + client_secret from file or env vars."""
-        client_id = os.environ.get("SPOTIFY_CLIENT_ID")
-        client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET")
-        if client_id and client_secret:
-            return {"client_id": client_id, "client_secret": client_secret}
-        if CREDS_FILE.exists():
-            try:
-                return json.loads(CREDS_FILE.read_text())
-            except Exception:
-                pass
-        return {}
-
-    def _load_token(self):
-        if TOKEN_FILE.exists():
-            try:
-                return json.loads(TOKEN_FILE.read_text())
-            except Exception:
-                pass
-        return {}
-
-    def _save_token(self, data: dict):
-        FRIDAY_DIR.mkdir(parents=True, exist_ok=True)
-        data["expires_at"] = time.time() + data.get("expires_in", 3600) - 60
-        TOKEN_FILE.write_text(json.dumps(data, indent=2))
-        self._token_data = data
-
-    # ── OAuth flow ──────────────────────────────────────────────────────────
-
-    def is_configured(self) -> bool:
-        return bool(self._creds.get("client_id") and self._creds.get("client_secret"))
-
-    def is_authenticated(self) -> bool:
-        return bool(self._token_data.get("access_token"))
-
-    def get_auth_url(self) -> str:
-        if not self.is_configured():
-            return ""
-        params = {
-            "client_id": self._creds["client_id"],
-            "response_type": "code",
-            "redirect_uri": self._redirect_uri,
-            "scope": SCOPES,
-        }
-        return f"{SPOTIFY_AUTH_URL}?{urlencode(params)}"
-
-    def handle_callback(self, code: str) -> bool:
-        """Exchange auth code for tokens. Returns True on success."""
-        try:
-            resp = requests.post(
-                SPOTIFY_TOKEN_URL,
-                data={
-                    "grant_type": "authorization_code",
-                    "code": code,
-                    "redirect_uri": self._redirect_uri,
-                },
-                auth=(self._creds["client_id"], self._creds["client_secret"]),
-                timeout=10,
-            )
-            if resp.status_code == 200:
-                self._save_token(resp.json())
-                return True
-        except Exception as e:
-            print(f"[Spotify] Token exchange error: {e}")
-        return False
-
-    def _refresh_token(self) -> bool:
-        refresh_token = self._token_data.get("refresh_token")
-        if not refresh_token:
-            return False
-        try:
-            resp = requests.post(
-                SPOTIFY_TOKEN_URL,
-                data={
-                    "grant_type": "refresh_token",
-                    "refresh_token": refresh_token,
-                },
-                auth=(self._creds["client_id"], self._creds["client_secret"]),
-                timeout=10,
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                # Preserve refresh_token if not returned in response
-                if "refresh_token" not in data:
-                    data["refresh_token"] = refresh_token
-                self._save_token(data)
-                return True
-        except Exception as e:
-            print(f"[Spotify] Refresh error: {e}")
-        return False
-
-    def _get_access_token(self):
-        """Return valid access token, refreshing if needed."""
-        if not self._token_data:
-            return None
-        expires_at = self._token_data.get("expires_at", 0)
-        if time.time() >= expires_at:
-            if not self._refresh_token():
-                return None
-        return self._token_data.get("access_token")
-
     # ── Polling ─────────────────────────────────────────────────────────────
 
     def _poll_once(self):
-        token = self._get_access_token()
-        if not token:
-            return
         try:
             resp = requests.get(
-                f"{SPOTIFY_API_BASE}/me/player/currently-playing",
-                headers={"Authorization": f"Bearer {token}"},
+                LASTFM_API_BASE,
+                params={
+                    "method": "user.getRecentTracks",
+                    "user": LASTFM_USER,
+                    "api_key": LASTFM_API_KEY,
+                    "format": "json",
+                    "limit": 1,
+                },
                 timeout=5,
             )
-            if resp.status_code == 204 or resp.status_code == 200 and not resp.text.strip():
-                # Nothing playing
+            if resp.status_code != 200:
+                return
+
+            data = resp.json()
+            tracks = data.get("recenttracks", {}).get("track", [])
+            if not tracks:
                 with self._lock:
                     self._cached_track = {"playing": False}
                 return
-            if resp.status_code == 200:
-                data = resp.json()
-                item = data.get("item")
-                if not item:
-                    with self._lock:
-                        self._cached_track = {"playing": False}
-                    return
-                images = item.get("album", {}).get("images", [])
-                art_url = images[0]["url"] if images else None
-                artists = ", ".join(a["name"] for a in item.get("artists", []))
-                track = {
-                    "playing": True,
-                    "title": item.get("name", ""),
-                    "artist": artists,
-                    "album": item.get("album", {}).get("name", ""),
-                    "albumArtUrl": art_url,
-                    "progressMs": data.get("progress_ms", 0),
-                    "durationMs": item.get("duration_ms", 1),
-                    "isPlaying": data.get("is_playing", False),
-                }
+
+            track = tracks[0] if isinstance(tracks, list) else tracks
+            # Last.fm marks currently-playing track with @attr.nowplaying == "true"
+            now_playing = track.get("@attr", {}).get("nowplaying") == "true"
+
+            if not now_playing:
                 with self._lock:
-                    self._cached_track = track
+                    self._cached_track = {"playing": False}
+                return
+
+            # Pick largest album art image (last in the list)
+            images = track.get("image", [])
+            art_url = None
+            for img in reversed(images):
+                url = img.get("#text", "")
+                if url:
+                    art_url = url
+                    break
+
+            result = {
+                "playing": True,
+                "title": track.get("name", ""),
+                "artist": track.get("artist", {}).get("#text", ""),
+                "album": track.get("album", {}).get("#text", ""),
+                "albumArtUrl": art_url,
+                # Last.fm doesn't expose progress — Flutter shows indeterminate bar
+                "progressMs": 0,
+                "durationMs": 0,
+                "isPlaying": True,
+            }
+            with self._lock:
+                self._cached_track = result
+
         except Exception as e:
-            print(f"[Spotify] Poll error: {e}")
+            print(f"[LastFM] Poll error: {e}")
 
     def _poll_loop(self):
         while self._running:
@@ -184,7 +91,7 @@ class SpotifyHandler:
         self._running = True
         self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._poll_thread.start()
-        print("[Spotify] Polling started")
+        print(f"[LastFM] Polling started for user '{LASTFM_USER}'")
 
     def stop_polling(self):
         self._running = False
@@ -192,3 +99,17 @@ class SpotifyHandler:
     def get_now_playing(self) -> dict:
         with self._lock:
             return dict(self._cached_track)
+
+    # ── Stubs kept so friday_integration_server.py routes don't break ───────
+
+    def is_configured(self) -> bool:
+        return True
+
+    def is_authenticated(self) -> bool:
+        return True
+
+    def get_auth_url(self) -> str:
+        return ""
+
+    def handle_callback(self, code: str) -> bool:
+        return False
