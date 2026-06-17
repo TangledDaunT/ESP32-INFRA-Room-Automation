@@ -69,17 +69,23 @@ void smoke_feed(uint16_t val) {
             double var    = (_calSumSq / _calCount) - (mean * mean);
             double sigma  = sqrt(max(var, 0.0));
 
-            _baseline  = (uint16_t)mean;
-            _threshold = (uint16_t)(mean + MQ2_SPIKE_SIGMA * sigma);
-
-            // Safety floor: threshold must be at least baseline + 20
-            if (_threshold < _baseline + 20) {
+            if (_calCount < 20 || var > 500.0) {
+                _baseline  = 800;
                 _threshold = _baseline + 20;
+                Serial.println("smoke_tracker: calibration invalid, using conservative baseline");
+            } else {
+                _baseline  = (uint16_t)mean;
+                _threshold = (uint16_t)(mean + MQ2_SPIKE_SIGMA * sigma);
+
+                // Safety floor: threshold must be at least baseline + 20
+                if (_threshold < _baseline + 20) {
+                    _threshold = _baseline + 20;
+                }
+                Serial.printf("[SMOKE] Calibrated — baseline: %u, σ: %.1f, threshold: %u  (%u samples)\n",
+                              _baseline, (float)sigma, _threshold, _calCount);
             }
 
             _phase = SMOKE_IDLE;
-            Serial.printf("[SMOKE] Calibrated — baseline: %u, σ: %.1f, threshold: %u  (%u samples)\n",
-                          _baseline, (float)sigma, _threshold, _calCount);
         }
         break;
 

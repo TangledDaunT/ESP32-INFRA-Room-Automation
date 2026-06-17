@@ -1,6 +1,7 @@
 // lib/services/clap_detector.dart
 import 'dart:async';
 import 'dart:isolate';
+import 'package:flutter/foundation.dart';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:fftea/fftea.dart';
@@ -43,8 +44,12 @@ class ClapDetector {
   ClapCallback? onSingleClap;
   ClapCallback? onDoubleClap;
   DbCallback? onDbUpdate;
+  VoidCallback? onClapDetectorFailed;
+  VoidCallback? onClapDetectorRecovered;
 
   bool _isRunning = false;
+  int _restartCount = 0;
+  DateTime? _firstRestartAt;
 
   // Double clap state
   int _clapCount = 0;
@@ -97,12 +102,24 @@ class ClapDetector {
       },
       onError: (e) {
         stop();
+        _restartCount++;
+        _firstRestartAt ??= DateTime.now();
+        if (_restartCount > 3 &&
+            DateTime.now().difference(_firstRestartAt!) < const Duration(seconds: 60)) {
+          onClapDetectorFailed?.call();
+          return;
+        }
         Future.delayed(const Duration(seconds: 2), start);
       },
       cancelOnError: false,
     );
 
     _isRunning = true;
+    if (_restartCount > 0) {
+      onClapDetectorRecovered?.call();
+    }
+    _restartCount = 0;
+    _firstRestartAt = null;
     return true;
   }
 

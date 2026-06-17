@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
+import '../models/device_state.dart';
 import '../providers/device_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/friday_service.dart';
@@ -25,6 +26,34 @@ class ControlScreen extends StatefulWidget {
 
   @override
   State<ControlScreen> createState() => _ControlScreenState();
+}
+
+String _luxLabel(double lux) {
+  if (lux < 0) return 'NO SENSOR';
+  if (lux < 20) return 'DARK';
+  if (lux < 100) return 'DIM';
+  if (lux < 300) return 'BRIGHT';
+  return 'VERY BRIGHT';
+}
+
+Color _luxColor(double lux) {
+  if (lux < 0) return Colors.grey;
+  if (lux < 20) return const Color(0xFF5588FF);
+  if (lux < 100) return const Color(0xFF88AAFF);
+  if (lux < 300) return const Color(0xFFFFCC44);
+  return const Color(0xFFFFAA00);
+}
+
+String _smokeLabel(double ppm) {
+  if (ppm < 200) return 'NORMAL';
+  if (ppm < 600) return 'ELEVATED';
+  return 'ALERT';
+}
+
+Color _smokeColor(double ppm) {
+  if (ppm < 200) return const Color(0xFF44DD88);
+  if (ppm < 600) return const Color(0xFFFFAA00);
+  return const Color(0xFFFF4444);
 }
 
 class _ControlScreenState extends State<ControlScreen>
@@ -64,6 +93,9 @@ class _ControlScreenState extends State<ControlScreen>
     final device = context.watch<DeviceProvider>();
     final state = device.state;
 
+    final isDisconnected =
+        state.openclawStatus == ConnectionStatus.disconnected;
+
     return Scaffold(
       backgroundColor: AppColors.black,
       body: GestureDetector(
@@ -74,7 +106,27 @@ class _ControlScreenState extends State<ControlScreen>
           device.simulateDoubleClap();
         },
         behavior: HitTestBehavior.translucent,
-        child: Padding(
+        child: Column(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              height: isDisconnected ? 32 : 0,
+              color: const Color(0xFF7A4F00),
+              child: isDisconnected
+                  ? const Center(
+                      child: Text(
+                        'ESP32 DISCONNECTED — RETRYING...',
+                        style: TextStyle(
+                          color: Color(0xFFFFCC44),
+                          fontSize: 11,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            Expanded(
+              child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
@@ -113,6 +165,8 @@ class _ControlScreenState extends State<ControlScreen>
                                   label: 'LUX',
                                   icon: Symbols.light_mode,
                                   unit: 'LX',
+                                  statusLabel: _luxLabel(state.luxValue),
+                                  statusColor: _luxColor(state.luxValue),
                                 ),
                               ),
                             ),
@@ -129,6 +183,8 @@ class _ControlScreenState extends State<ControlScreen>
                                   icon: Symbols.detector_smoke,
                                   unit: 'PPM',
                                   warningThreshold: 2800,
+                                  statusLabel: _smokeLabel(state.smokeValue),
+                                  statusColor: _smokeColor(state.smokeValue),
                                 ),
                               ),
                             ),
@@ -242,20 +298,6 @@ class _ControlScreenState extends State<ControlScreen>
                                       .then((_) => _resetIdleTimer());
                                 },
                               ),
-                              Selector<DeviceProvider, bool>(
-                                selector: (context, provider) => provider.musicMode,
-                                builder: (context, musicMode, child) {
-                                  return _BottomActionButton(
-                                    icon: Symbols.graphic_eq,
-                                    label: 'MUSIC',
-                                    onTap: () {
-                                      _resetIdleTimer();
-                                      context.read<DeviceProvider>().toggleMusicMode();
-                                    },
-                                    isActive: musicMode,
-                                  );
-                                },
-                              ),
                               // Friday voice button
                               Consumer<FridayService>(
                                 builder: (context, friday, child) {
@@ -307,6 +349,9 @@ class _ControlScreenState extends State<ControlScreen>
               ),
             ],
           ),
+        ),
+            ),
+          ],
         ),
       ),
       // Clap feedback overlay

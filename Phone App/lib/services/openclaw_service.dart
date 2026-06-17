@@ -19,6 +19,7 @@ class OpenClawService {
   StreamSubscription? _wsSubscription;
   Timer? _reconnectTimer;
   ConnectionStatus status = ConnectionStatus.disconnected;
+  int _reconnectDelay = 2;
 
   OpenClawService(this._settings);
 
@@ -51,6 +52,7 @@ class OpenClawService {
         (message) {
           if (status != ConnectionStatus.connected) {
             status = ConnectionStatus.connected;
+            _reconnectDelay = 2;
             onConnected?.call();
           }
           try {
@@ -78,9 +80,10 @@ class OpenClawService {
     _wsSubscription?.cancel();
     _channel?.sink.close();
     
-    // Auto-reconnect
+    // Auto-reconnect with exponential backoff
     _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(const Duration(seconds: 2), _connectWs);
+    _reconnectTimer = Timer(Duration(seconds: _reconnectDelay), _connectWs);
+    _reconnectDelay = (_reconnectDelay * 2).clamp(2, 30);
   }
 
   /// Send Command to API (HTTP POST) - Firmware accepts POST at /api/cmd

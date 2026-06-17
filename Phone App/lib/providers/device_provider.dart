@@ -14,6 +14,8 @@ import '../services/clap_detector.dart';
 import '../services/friday_service.dart';
 import '../services/openclaw_service.dart';
 import '../services/sleep_service.dart';
+import '../services/spotify_service.dart';
+import '../models/spotify_track.dart';
 import '../services/wakeup_service.dart';
 
 class DeviceProvider extends ChangeNotifier {
@@ -22,6 +24,7 @@ class DeviceProvider extends ChangeNotifier {
   late final SleepService _sleep;
   late final WakeupService _wakeup;
   late final FridayService _friday;
+  late final SpotifyService _spotify;
   final ActivityLogService _activityLog;
   AlarmService? _alarmService;
 
@@ -30,17 +33,13 @@ class DeviceProvider extends ChangeNotifier {
   DeviceState _state = DeviceState();
   AppSettings _settings;
 
-  // Music mode
-  bool _musicMode = false;
-  Timer? _musicTimer;
-  double _smoothedDb = 50.0;
-  static const double _musicSmoothing = 0.3;
-
   // PWM ramp for clap-triggered RGB
   Timer? _rampTimer;
   Timer? _clapIndicatorTimer;
   bool _showClapIndicator = false;
   bool _smokeAlarmLatched = false;
+  bool _clapDetectorHealthy = true;
+
   DeviceProvider(
     this._settings,
     this._activityLog, {
@@ -54,6 +53,7 @@ class DeviceProvider extends ChangeNotifier {
     _sleep = SleepService(_settings);
     _wakeup = WakeupService(_settings);
     _friday = fridayService ?? FridayService(settings: _settings);
+    _spotify = SpotifyService(_settings);
 
     _setupCallbacks();
     _init();
@@ -66,10 +66,11 @@ class DeviceProvider extends ChangeNotifier {
   }
 
   DeviceState get state => _state;
-  bool get musicMode => _musicMode;
   bool get showClapIndicator => _showClapIndicator;
+  bool get clapDetectorHealthy => _clapDetectorHealthy;
   AppSettings get settings => _settings;
   FridayService get friday => _friday;
+  SpotifyTrack? get currentTrack => _spotify.currentTrack;
 
   void _setupCallbacks() {
     // ── OpenClaw state sync ────────────────────────────
@@ -84,7 +85,14 @@ class DeviceProvider extends ChangeNotifier {
     // ── Clap detection ────────────────────────────────
     _clap.onDoubleClap = _handleDoubleClap;
     _clap.onSingleClap = _onSingleClap;
-    _clap.onDbUpdate = _onDbUpdate;
+    _clap.onClapDetectorFailed = () {
+      _clapDetectorHealthy = false;
+      notifyListeners();
+    };
+    _clap.onClapDetectorRecovered = () {
+      _clapDetectorHealthy = true;
+      notifyListeners();
+    };
 
     // ── Sleep service ─────────────────────────────────
     _sleep.onSleepStateChanged = (state) {
@@ -99,6 +107,9 @@ class DeviceProvider extends ChangeNotifier {
     _sleep.onTurnOffAll = _turnOffAll;
     _sleep.onTurnOnMainLight = () => setLight(true);
     _sleep.onAway = _onAway;
+
+    // ── Spotify ───────────────────────────────────────
+    _spotify.onTrackChanged = () => notifyListeners();
 
     // ── Wake-up service ───────────────────────────────
     _wakeup.onRgbOn = () => setRgb(true);
@@ -121,6 +132,9 @@ class DeviceProvider extends ChangeNotifier {
 
     // Start wake-up scheduler
     _wakeup.start();
+
+    // Start Spotify polling
+    _spotify.start();
   }
 
   // ── Device Control ────────────────────────────────────
@@ -399,35 +413,6 @@ class DeviceProvider extends ChangeNotifier {
     _turnOffAll();
   }
 
-  // ── Music Mode ─────────────────────────────────────
-
-  void _onDbUpdate(double db) {
-    if (!_musicMode) return;
-
-    // Exponential moving average for smooth response
-    _smoothedDb =
-        _smoothedDb * (1 - _musicSmoothing) + db * _musicSmoothing;
-
-    // Map 40dB (quiet) → 90dB (loud) to brightness 20 → 255
-    const double minDb = 40.0;
-    const double maxDb = 90.0;
-    final normalized =
-        ((_smoothedDb - minDb) / (maxDb - minDb)).clamp(0.0, 1.0);
-    final brightness = (normalized * 235 + 20).round().clamp(20, 255);
-
-    setRgbBrightnessFast(brightness, duration: 100);
-  }
-
-  void toggleMusicMode() {
-    _musicMode = !_musicMode;
-    _updateState(_state.copyWith(musicMode: _musicMode));
-
-    if (_musicMode) {
-      setRgb(true);
-    }
-    notifyListeners();
-  }
-
   // ── Settings Update ───────────────────────────────────
 
   Future<void> updateSettings(AppSettings settings) async {
@@ -437,6 +422,7 @@ class DeviceProvider extends ChangeNotifier {
     _wakeup.updateSettings(settings);
     _clap.updateSettings(settings.toJson());
     _friday.updateSettings(settings);
+    _spotify.updateSettings(settings);
     _alarmService?.updateSettings(settings);
     await _activityLog.updateSettings(settings);
 
@@ -605,8 +591,8 @@ class DeviceProvider extends ChangeNotifier {
     _sleep.dispose();
     _wakeup.dispose();
     _friday.dispose();
+    _spotify.dispose();
     _rampTimer?.cancel();
-    _musicTimer?.cancel();
     _clapIndicatorTimer?.cancel();
     super.dispose();
   }

@@ -54,6 +54,8 @@ class AlarmService {
         debugPrint('[AlarmService] Failed to load alarms: $e');
       }
     }
+    _lastFiredId = prefs.getString('alarm_last_fired_id');
+    _lastFiredMinute = prefs.getInt('alarm_last_fired_minute');
   }
 
   Future<void> _persist() async {
@@ -122,6 +124,20 @@ class AlarmService {
     final now = DateTime.now();
     final nowEncoded = now.hour * 60 + now.minute;
 
+    // Clear persisted state after 2 minutes have passed since firing
+    if (_lastFiredMinute != null) {
+      final diff = (nowEncoded - _lastFiredMinute!).abs();
+      final minutesPassed = diff > 720 ? 1440 - diff : diff; // handle midnight wrap
+      if (minutesPassed >= 2) {
+        _lastFiredId = null;
+        _lastFiredMinute = null;
+        SharedPreferences.getInstance().then((prefs) {
+          prefs.remove('alarm_last_fired_id');
+          prefs.remove('alarm_last_fired_minute');
+        });
+      }
+    }
+
     for (final alarm in _alarms) {
       if (!alarm.isEnabled) continue;
       final alarmEncoded = alarm.hour * 60 + alarm.minute;
@@ -135,22 +151,22 @@ class AlarmService {
         break; // Only fire one alarm at a time
       }
     }
-
-    // Reset last-fired tracker when minute changes
-    if (_lastFiredMinute != null && _lastFiredMinute != nowEncoded) {
-      _lastFiredId = null;
-      _lastFiredMinute = null;
-    }
   }
 
   void _fire(AlarmModel alarm) {
     _isFiring = true;
     _currentFiringAlarm = alarm;
     startAudioLoop();
-    
+
+    // Persist fired state to survive app restarts within the same minute
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('alarm_last_fired_id', alarm.id);
+      prefs.setInt('alarm_last_fired_minute', alarm.hour * 60 + alarm.minute);
+    });
+
     // Sync with laptop if enabled
     _syncAlarmToLaptop(alarm, 'trigger');
-    
+
     onAlarmFired?.call(alarm);
   }
 

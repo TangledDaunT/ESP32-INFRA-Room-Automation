@@ -418,6 +418,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       firstChild: const SizedBox.shrink(),
                       secondChild: Column(
                         children: [
+                          Padding(
+                            padding: const EdgeInsets.only(left: 16, top: 20, bottom: 6),
+                            child: Text(
+                              'CLAP DETECTION',
+                              style: AppTextStyles.labelSM().copyWith(
+                                color: Colors.white.withValues(alpha: 0.35),
+                                letterSpacing: 2.0,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
                           SettingsRow(
                             label: 'CLAP SENSITIVITY',
                             trailing: SizedBox(
@@ -441,6 +452,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     style: AppTextStyles.bodyLG(),
                                   ),
                                 ],
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 16, top: 20, bottom: 6),
+                            child: Text(
+                              'SLEEP THRESHOLDS',
+                              style: AppTextStyles.labelSM().copyWith(
+                                color: Colors.white.withValues(alpha: 0.35),
+                                letterSpacing: 2.0,
+                                fontSize: 10,
                               ),
                             ),
                           ),
@@ -526,6 +548,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               _draft.presenceAutoRestoreLight ? 'ENABLED' : 'DISABLED',
                             ),
                           ),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 16, top: 20, bottom: 6),
+                            child: Text(
+                              'HISTORY SYNC',
+                              style: AppTextStyles.labelSM().copyWith(
+                                color: Colors.white.withValues(alpha: 0.35),
+                                letterSpacing: 2.0,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
                           SettingsRow(
                             label: 'HISTORY SYNC',
                             onTap: () {
@@ -546,6 +579,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 _draft.historySyncUrl = value;
                                 _markDirty();
                               },
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 16, top: 20, bottom: 6),
+                            child: Text(
+                              'SPOTIFY',
+                              style: AppTextStyles.labelSM().copyWith(
+                                color: Colors.white.withValues(alpha: 0.35),
+                                letterSpacing: 2.0,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                          SettingsRow(
+                            label: 'NOW PLAYING',
+                            onTap: () {
+                              setState(() {
+                                _draft.spotifyEnabled = !_draft.spotifyEnabled;
+                                _dirty = true;
+                              });
+                            },
+                            trailing: _buildTapValue(
+                              _draft.spotifyEnabled ? 'ENABLED' : 'DISABLED',
+                            ),
+                          ),
+                          SettingsRow(
+                            label: 'POLLING URL',
+                            trailing: Text(
+                              '${_draft.fridayBaseUrl}/api/spotify',
+                              style: AppTextStyles.labelSM().copyWith(
+                                color: Colors.white.withValues(alpha: 0.35),
+                                letterSpacing: 1.0,
+                              ),
                             ),
                           ),
                           SettingsRow(

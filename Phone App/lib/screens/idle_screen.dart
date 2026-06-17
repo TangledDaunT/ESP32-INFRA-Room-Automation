@@ -8,7 +8,9 @@ import 'package:provider/provider.dart';
 
 import 'package:material_symbols_icons/symbols.dart';
 import '../models/device_state.dart';
+import '../models/spotify_track.dart';
 import '../providers/device_provider.dart';
+import '../theme.dart';
 
 /// Apple StandBy-inspired OLED clock screen.
 ///
@@ -336,6 +338,94 @@ class _IdleScreenState extends State<IdleScreen>
   }
 
   // ────────────────────────────────────────────────────────────
+  // Spotify mini-player
+  // ────────────────────────────────────────────────────────────
+
+  Widget _buildMiniPlayer(SpotifyTrack track, double screenWidth, double screenHeight) {
+    return Container(
+      width: (screenWidth * 0.52).clamp(240.0, 480.0),
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: GlassDecoration.panel(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: track.albumArtUrl != null
+                ? Image.network(
+                    track.albumArtUrl!,
+                    width: 44,
+                    height: 44,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _albumArtFallback(),
+                  )
+                : _albumArtFallback(),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  track.title,
+                  style: AppTextStyles.labelLG().copyWith(
+                    color: AppColors.white90,
+                    letterSpacing: 1.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  track.artist,
+                  style: AppTextStyles.labelSM().copyWith(
+                    color: AppColors.white40,
+                    letterSpacing: 1.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: LinearProgressIndicator(
+                    value: track.progressFraction,
+                    minHeight: 2,
+                    backgroundColor: AppColors.white08,
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1A6FFF)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            track.isPlaying ? Symbols.equalizer : Symbols.pause,
+            color: const Color(0xFF1A6FFF),
+            size: 16,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _albumArtFallback() {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: AppColors.glassFill,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.glassBorder),
+      ),
+      child: const Icon(Symbols.music_note, color: AppColors.white40, size: 20),
+    );
+  }
+
+  // ────────────────────────────────────────────────────────────
   // Build
   // ────────────────────────────────────────────────────────────
 
@@ -409,6 +499,43 @@ class _IdleScreenState extends State<IdleScreen>
 
                   // Date row
                   _buildDateRow(_now, screenHeight),
+
+                  // Device status icons
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        (Icons.light_outlined, deviceState.lightOn, 'LIGHT'),
+                        (Icons.wind_power, deviceState.fanOn, 'FAN'),
+                        (Icons.power_outlined, deviceState.socketOn, 'SOCKET'),
+                        (Icons.lightbulb_outline, deviceState.rgbOn, 'RGB'),
+                      ].map((d) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Icon(
+                          d.$1,
+                          size: 18,
+                          color: d.$2
+                              ? const Color(0xFF1A6FFF)
+                              : Colors.white.withValues(alpha: 0.18),
+                        ),
+                      )).toList(),
+                    ),
+                  ),
+
+                  // Spotify mini-player
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeOut,
+                    child: Builder(
+                      builder: (context) {
+                        final track = context.watch<DeviceProvider>().currentTrack;
+                        return track != null
+                            ? _buildMiniPlayer(track, size.width, screenHeight)
+                            : const SizedBox.shrink();
+                      },
+                    ),
+                  ),
                 ],
               ),
             ),

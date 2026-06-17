@@ -78,6 +78,9 @@ class AppSettings {
   int sleepAlarmHours; // Hours for sleep alarm (default 5)
   int sleepAlarmMinutes; // Minutes for sleep alarm (default 30)
 
+  // ── Spotify ───────────────────────────────────────────
+  bool spotifyEnabled;
+
   AppSettings({
     // ── Real ESP32 HTTP endpoint ───────────────────────────────
     // MQTT: HiveMQ Cloud TLS (matches firmware config.h)
@@ -133,6 +136,7 @@ class AppSettings {
     this.laptopAlarmSync = true,
     this.sleepAlarmHours = 5,
     this.sleepAlarmMinutes = 30,
+    this.spotifyEnabled = true,
   });
 
   Map<String, dynamic> toJson() => {
@@ -186,6 +190,7 @@ class AppSettings {
         'laptopAlarmSync': laptopAlarmSync,
         'sleepAlarmHours': sleepAlarmHours,
         'sleepAlarmMinutes': sleepAlarmMinutes,
+        'spotifyEnabled': spotifyEnabled,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
@@ -242,6 +247,7 @@ class AppSettings {
         laptopAlarmSync: json['laptopAlarmSync'] ?? true,
         sleepAlarmHours: json['sleepAlarmHours'] ?? 5,
         sleepAlarmMinutes: json['sleepAlarmMinutes'] ?? 30,
+        spotifyEnabled: json['spotifyEnabled'] as bool? ?? true,
       );
 
   String toJsonString() => jsonEncode(toJson());

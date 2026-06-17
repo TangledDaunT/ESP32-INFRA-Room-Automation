@@ -1,0 +1,18 @@
+[Unit]
+Description=Friday Integration Server for OpenClaw
+After=network.target
+
+[Service]
+Type=simple
+User=shreyansh
+Group=shreyansh
+WorkingDirectory=/home/shreyansh/PHONE APP/ESP32-INFRA-Room-Automation/server
+ExecStartPre=/bin/mkdir -p /home/shreyansh/.friday/recordings /home/shreyansh/.friday/logs
+ExecStart=/usr/bin/python3 /home/shreyansh/PHONE APP/ESP32-INFRA-Room-Automation/server/friday_integration_server.py --port 41263
+Restart=on-failure
+RestartSec=5
+Environment="PYTHONUNBUFFERED=1"
+Environment="OPENCLAW_HOOK_TOKEN="
+
+[Install]
+WantedBy=multi-user.target

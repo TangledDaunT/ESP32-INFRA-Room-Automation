@@ -33,11 +33,15 @@ import base64
 import subprocess
 import threading
 import logging
+import webbrowser
 from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 from datetime import datetime
+from typing import Optional
 import argparse
+
+from spotify_handler import SpotifyHandler
 
 # ── Configuration ─────────────────────────────────────────────
 
@@ -47,19 +51,21 @@ MAX_AUDIO_SIZE = 10 * 1024 * 1024
 TOKEN_FILE = Path.home() / '.friday' / '.hook_token'
 
 
-def load_hook_token() -> str:
-    """Load auth token from env or a local file."""
+def load_hook_token() -> Optional[str]:
+    """Load auth token from env or a local file; returns None in unauthenticated mode."""
     env_token = os.environ.get('OPENCLAW_HOOK_TOKEN', '').strip()
     if env_token:
         return env_token
 
     try:
         if TOKEN_FILE.exists():
-            return TOKEN_FILE.read_text(encoding='utf-8').strip()
-    except Exception:
-        return ''
+            token = TOKEN_FILE.read_text(encoding='utf-8').strip()
+            if token:
+                return token
+    except Exception as e:
+        logging.warning(f"Could not read token file {TOKEN_FILE}: {e}")
 
-    return ''
+    return None
 
 # Directories
 RECORDINGS_DIR = Path.home() / '.friday' / 'recordings'
@@ -97,12 +103,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger('friday')
 HOOK_TOKEN = load_hook_token()
+if HOOK_TOKEN is None:
+    logging.warning("No auth token found — running in unauthenticated mode. "
+                    "Set OPENCLAW_HOOK_TOKEN env var or create ~/.friday/.hook_token")
 
 # ── Global State ─────────────────────────────────────────────
 
 _current_alarm = None
 _alarm_stop_event = threading.Event()
 _alarm_lock = threading.RLock()
+
+_spotify = SpotifyHandler()
+_spotify.start_polling()
 
 
 # ── Utility Functions ───────────────────────────────────────
@@ -136,8 +148,11 @@ def send_to_gateway(text: str):
         return False
 
 
-def find_display():
-    """Find primary display with xrandr"""
+def find_display() -> Optional[str]:
+    """Find primary display: respects DISPLAY_OUTPUT env var, falls back to xrandr query."""
+    env_output = os.environ.get('DISPLAY_OUTPUT', '').strip()
+    if env_output:
+        return env_output
     try:
         result = subprocess.run(
             ['xrandr', '--query'],
@@ -148,9 +163,9 @@ def find_display():
         for line in result.stdout.split('\n'):
             if ' connected' in line:
                 return line.split()[0]
-    except:
+    except Exception:
         pass
-    return None
+    return os.environ.get('DISPLAY_OUTPUT', 'eDP-1')
 
 
 def set_brightness_xrandr(level: int):
@@ -465,8 +480,9 @@ class FridayHandler(BaseHTTPRequestHandler):
         label = payload.get('label', '')
         
         start_alarm_loop(alarm_id, label)
-        
+
         self._json_response(200, {
+            'status': 'started',
             'success': True,
             'alarm_id': alarm_id,
             'action': 'trigger'
@@ -512,20 +528,79 @@ class FridayHandler(BaseHTTPRequestHandler):
         })
     
     def do_GET(self):
-        """Health check"""
-        if self.path == '/health':
+        """Health check and Spotify endpoints"""
+        parsed = urlparse(self.path)
+        path = parsed.path
+        qs = parse_qs(parsed.query)
+
+        if path == '/health':
             player = find_player()
+            try:
+                recording_count = len(list(RECORDINGS_DIR.glob('*.wav')))
+            except Exception:
+                recording_count = -1
             self._json_response(200, {
                 'status': 'ok',
                 'service': 'friday_integration',
                 'port': PORT,
                 'alarm_active': _current_alarm is not None,
+                'token_loaded': HOOK_TOKEN is not None,
+                'recording_count': recording_count,
                 'audio_player': player,
                 'sound_file': ALARM_SOUND
             })
-        elif self.path == '/stop-alarm':
+        elif path == '/stop-alarm':
             stop_alarm_loop()
             self._json_response(200, {'success': True, 'action': 'stop'})
+        elif path == '/api/spotify/now-playing':
+            self._json_response(200, _spotify.get_now_playing())
+        elif path == '/api/spotify/auth':
+            if not _spotify.is_configured():
+                self._json_response(503, {'error': 'Spotify credentials not configured. Run setup.sh first.'})
+                return
+            auth_url = _spotify.get_auth_url()
+            try:
+                webbrowser.open(auth_url)
+            except Exception:
+                pass
+            body = (
+                f'<html><body>'
+                f'<p>Opening Spotify login...</p>'
+                f'<p>If browser did not open: <a href="{auth_url}">{auth_url}</a></p>'
+                f'</body></html>'
+            ).encode()
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.end_headers()
+            self.wfile.write(body)
+        elif path == '/api/spotify/callback':
+            code_list = qs.get('code')
+            error_list = qs.get('error')
+            if error_list:
+                error = error_list[0]
+                body = f'<html><body><p>Auth failed: {error}</p></body></html>'.encode()
+                self.send_response(400)
+                self.send_header('Content-Type', 'text/html')
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if not code_list:
+                body = b'<html><body><p>No code received</p></body></html>'
+                self.send_response(400)
+                self.send_header('Content-Type', 'text/html')
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            success = _spotify.handle_callback(code_list[0])
+            if success:
+                body = b'<html><body><h2>&#x2705; Spotify connected!</h2><p>You can close this tab. The app will now show now-playing info.</p></body></html>'
+                self.send_response(200)
+            else:
+                body = b'<html><body><p>Token exchange failed. Check server logs.</p></body></html>'
+                self.send_response(500)
+            self.send_header('Content-Type', 'text/html')
+            self.end_headers()
+            self.wfile.write(body)
         else:
             self._json_response(404, {'error': 'Not found'})
 

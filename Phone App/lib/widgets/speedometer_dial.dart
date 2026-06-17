@@ -19,6 +19,8 @@ class SpeedometerDial extends StatelessWidget {
     required this.icon,
     this.unit = '',
     this.warningThreshold,
+    this.statusLabel,
+    this.statusColor,
   });
 
   /// Current sensor value.
@@ -38,6 +40,12 @@ class SpeedometerDial extends StatelessWidget {
 
   /// If value exceeds this, the needle/arc turns to a warning tone.
   final double? warningThreshold;
+
+  /// Optional context label shown below the unit (e.g. "DARK", "ALERT").
+  final String? statusLabel;
+
+  /// Color for the status label badge.
+  final Color? statusColor;
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +87,24 @@ class SpeedometerDial extends StatelessWidget {
                   label.toUpperCase(),
                   style: AppTextStyles.labelSM(color: AppColors.white40),
                 ),
+                if (statusLabel != null) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: (statusColor ?? Colors.white).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      statusLabel!,
+                      style: AppTextStyles.labelSM().copyWith(
+                        color: statusColor ?? Colors.white70,
+                        fontSize: 9,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

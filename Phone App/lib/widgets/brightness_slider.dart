@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme.dart';
 
@@ -30,6 +31,20 @@ class BrightnessSlider extends StatefulWidget {
 
 class _BrightnessSliderState extends State<BrightnessSlider> {
   bool _dragging = false;
+  double _lastHapticValue = -1;
+
+  void _triggerHapticIfNeeded(double newValue) {
+    const checkpoints = [0.0, 0.5, 1.0];
+    for (final cp in checkpoints) {
+      final cpVal = (cp * 255).round().toDouble();
+      if ((_lastHapticValue < cpVal && newValue >= cpVal) ||
+          (_lastHapticValue > cpVal && newValue <= cpVal)) {
+        HapticFeedback.selectionClick();
+        break;
+      }
+    }
+    _lastHapticValue = newValue;
+  }
 
   void _handleVerticalDrag(
       DragUpdateDetails details, BoxConstraints constraints) {
@@ -37,7 +52,9 @@ class _BrightnessSliderState extends State<BrightnessSlider> {
     final dy = details.localPosition.dy - 24; // offset for top padding
     // Invert: top = 255, bottom = 0
     final fraction = 1.0 - (dy / trackHeight).clamp(0.0, 1.0);
-    widget.onChanged((fraction * 255).roundToDouble());
+    final newValue = (fraction * 255).roundToDouble();
+    _triggerHapticIfNeeded(newValue);
+    widget.onChanged(newValue);
   }
 
   void _handleTapDown(TapDownDetails details, BoxConstraints constraints) {

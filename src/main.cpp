@@ -30,10 +30,15 @@ static void persistState() {
   prefs.putUChar("strip", hw_getStripBrightness());
   prefs.putInt("cigs", smoke_getCigaretteCount());
   prefs.putUChar("mode", (uint8_t)auto_getMode());
+  prefs.putUChar("nvs_ver", NVS_SCHEMA_VERSION);
   Serial.println("[NVS] State persisted");
 }
 
 static void restoreState() {
+  uint8_t schemaVer = prefs.getUChar("nvs_ver", 0);
+  if (schemaVer < NVS_SCHEMA_VERSION) {
+    Serial.println("NVS schema migrated to v2");
+  }
   // Relays
   for (int i = 0; i < RELAY_COUNT; i++) {
     char key[4];
@@ -245,6 +250,7 @@ int sensors_getCigarettes() {
 static void sensorTaskFn(void *param) {
   unsigned long lastMq2 = 0;
   unsigned long lastApds = 0;
+  static unsigned long lastMqttPub = 0;
 
   for (;;) {
     unsigned long now = millis();
@@ -286,6 +292,17 @@ static void sensorTaskFn(void *param) {
       }
 
       lastApds = now;
+    }
+
+    // ── MQTT publish every 2 s (off main loop to avoid blocking) ──
+    lastMqttPub += 50;
+    if (lastMqttPub >= MQTT_PUBLISH_MS) {
+      if (mqtt_isConnected()) {
+        mqtt_publishSensors(sensors_getSmoke(), sensors_getLux(),
+                            auto_isPresent());
+        mqtt_publishState();
+      }
+      lastMqttPub = 0;
     }
 
     vTaskDelay(pdMS_TO_TICKS(50)); // Yield to system tasks
@@ -410,17 +427,6 @@ void loop() {
                          auto_isPresent());
     }
     lastBlePush = now;
-  }
-
-  // ── MQTT sensor + state publish (every 2 s) ──
-  static unsigned long lastMqttPub = 0;
-  if (now - lastMqttPub >= MQTT_PUBLISH_MS) {
-    if (mqtt_isConnected()) {
-      mqtt_publishSensors(sensors_getSmoke(), sensors_getLux(),
-                          auto_isPresent());
-      mqtt_publishState();
-    }
-    lastMqttPub = now;
   }
 
   // ── NVS persist (debounced — only after 5 s of no changes) ──
