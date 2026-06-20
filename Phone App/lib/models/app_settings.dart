@@ -4,6 +4,7 @@ import 'dart:convert';
 class AppSettings {
   static const String currentOpenClawBaseUrl = 'http://192.168.1.15';
   static const String legacyOpenClawBaseUrl = 'http://192.168.1.30';
+  static const String defaultMacAgentBaseUrl = 'http://100.x.x.x:8765';
 
   // ── MQTT ──────────────────────────────────────────────
   String mqttBroker;
@@ -14,6 +15,7 @@ class AppSettings {
 
   // ── OpenClaw HTTP ─────────────────────────────────────
   String openclawBaseUrl; // e.g. http://192.168.1.5:8000
+  String macAgentBaseUrl; // Tailscale URL for the Mac control agent
 
   // ── BLE ───────────────────────────────────────────────
   String bleDeviceName; // Name the ESP32 advertises
@@ -91,6 +93,7 @@ class AppSettings {
     this.mqttUseTls = true,
     // HTTP: firmware serves on port 80 (AsyncWebServer, no base path)
     this.openclawBaseUrl = currentOpenClawBaseUrl,
+    this.macAgentBaseUrl = defaultMacAgentBaseUrl,
     this.bleDeviceName = 'OpenClaw_ESP32',
     this.topicFan = 'openclaw/control/fan',
     this.topicLight = 'openclaw/control/light',
