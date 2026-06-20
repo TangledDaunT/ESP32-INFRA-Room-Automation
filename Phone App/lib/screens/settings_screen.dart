@@ -24,6 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _usernameController;
   late TextEditingController _passwordController;
   late TextEditingController _openclawController;
+  late TextEditingController _macAgentController;
   late TextEditingController _bleController;
   late TextEditingController _historyController;
 
@@ -42,6 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _usernameController = TextEditingController(text: _draft.mqttUsername);
     _passwordController = TextEditingController(text: _draft.mqttPassword);
     _openclawController = TextEditingController(text: _draft.openclawBaseUrl);
+    _macAgentController = TextEditingController(text: _draft.macAgentBaseUrl);
     _bleController = TextEditingController(text: _draft.bleDeviceName);
     _historyController = TextEditingController(text: _draft.historySyncUrl);
   }
@@ -53,6 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _usernameController.dispose();
     _passwordController.dispose();
     _openclawController.dispose();
+    _macAgentController.dispose();
     _bleController.dispose();
     _historyController.dispose();
     super.dispose();
