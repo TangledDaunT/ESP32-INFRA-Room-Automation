@@ -432,7 +432,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       secondChild: Column(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.only(left: 16, top: 20, bottom: 6),
+                            padding: const EdgeInsets.only(
+                                left: 16, top: 20, bottom: 6),
                             child: Text(
                               'CLAP DETECTION',
                               style: AppTextStyles.labelSM().copyWith(
@@ -469,7 +470,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.only(left: 16, top: 20, bottom: 6),
+                            padding: const EdgeInsets.only(
+                                left: 16, top: 20, bottom: 6),
                             child: Text(
                               'SLEEP THRESHOLDS',
                               style: AppTextStyles.labelSM().copyWith(
@@ -553,16 +555,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             label: 'PRESENCE AUTO LIGHT',
                             onTap: () {
                               setState(() {
-                                _draft.presenceAutoRestoreLight = !_draft.presenceAutoRestoreLight;
+                                _draft.presenceAutoRestoreLight =
+                                    !_draft.presenceAutoRestoreLight;
                                 _dirty = true;
                               });
                             },
                             trailing: _buildTapValue(
-                              _draft.presenceAutoRestoreLight ? 'ENABLED' : 'DISABLED',
+                              _draft.presenceAutoRestoreLight
+                                  ? 'ENABLED'
+                                  : 'DISABLED',
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.only(left: 16, top: 20, bottom: 6),
+                            padding: const EdgeInsets.only(
+                                left: 16, top: 20, bottom: 6),
                             child: Text(
                               'HISTORY SYNC',
                               style: AppTextStyles.labelSM().copyWith(
@@ -576,12 +582,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             label: 'HISTORY SYNC',
                             onTap: () {
                               setState(() {
-                                _draft.historySyncEnabled = !_draft.historySyncEnabled;
+                                _draft.historySyncEnabled =
+                                    !_draft.historySyncEnabled;
                                 _dirty = true;
                               });
                             },
                             trailing: _buildTapValue(
-                              _draft.historySyncEnabled ? 'ENABLED' : 'DISABLED',
+                              _draft.historySyncEnabled
+                                  ? 'ENABLED'
+                                  : 'DISABLED',
                             ),
                           ),
                           SettingsRow(
@@ -595,7 +604,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.only(left: 16, top: 20, bottom: 6),
+                            padding: const EdgeInsets.only(
+                                left: 16, top: 20, bottom: 6),
                             child: Text(
                               'SPOTIFY',
                               style: AppTextStyles.labelSM().copyWith(
@@ -631,11 +641,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             label: 'HIGH-PASS FILTER',
                             onTap: () {
                               setState(() {
-                                _draft.clapHighPassEnabled = !_draft.clapHighPassEnabled;
+                                _draft.clapHighPassEnabled =
+                                    !_draft.clapHighPassEnabled;
                                 _dirty = true;
                               });
                             },
-                            trailing: _buildTapValue(_draft.clapHighPassEnabled ? 'ENABLED' : 'DISABLED'),
+                            trailing: _buildTapValue(_draft.clapHighPassEnabled
+                                ? 'ENABLED'
+                                : 'DISABLED'),
                           ),
                           SettingsRow(
                             label: 'CLAP FREQ MIN',
@@ -644,10 +657,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               initial: (_draft.clapMinFreqKhz * 1000).round(),
                               min: 1000,
                               max: 8000,
-                              onSelected: (value) => _draft.clapMinFreqKhz = value / 1000.0,
+                              onSelected: (value) =>
+                                  _draft.clapMinFreqKhz = value / 1000.0,
                               suffix: ' Hz',
                             ),
-                            trailing: _buildTapValue('${(_draft.clapMinFreqKhz * 1000).round()} Hz'),
+                            trailing: _buildTapValue(
+                                '${(_draft.clapMinFreqKhz * 1000).round()} Hz'),
                           ),
                           SettingsRow(
                             label: 'CLAP FREQ MAX',
@@ -656,10 +671,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               initial: (_draft.clapMaxFreqKhz * 1000).round(),
                               min: 2000,
                               max: 16000,
-                              onSelected: (value) => _draft.clapMaxFreqKhz = value / 1000.0,
+                              onSelected: (value) =>
+                                  _draft.clapMaxFreqKhz = value / 1000.0,
                               suffix: ' Hz',
                             ),
-                            trailing: _buildTapValue('${(_draft.clapMaxFreqKhz * 1000).round()} Hz'),
+                            trailing: _buildTapValue(
+                                '${(_draft.clapMaxFreqKhz * 1000).round()} Hz'),
                           ),
                           SettingsRow(
                             label: 'MIN ATTACK (ms)',
@@ -668,10 +685,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               initial: _draft.clapMinAttackMs,
                               min: 1,
                               max: 50,
-                              onSelected: (value) => _draft.clapMinAttackMs = value,
+                              onSelected: (value) =>
+                                  _draft.clapMinAttackMs = value,
                               suffix: ' ms',
                             ),
-                            trailing: _buildTapValue('${_draft.clapMinAttackMs} MS'),
+                            trailing:
+                                _buildTapValue('${_draft.clapMinAttackMs} MS'),
                           ),
                           SettingsRow(
                             label: 'MAX DURATION (ms)',
@@ -680,10 +699,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               initial: _draft.clapMaxDurationMs,
                               min: 50,
                               max: 500,
-                              onSelected: (value) => _draft.clapMaxDurationMs = value,
+                              onSelected: (value) =>
+                                  _draft.clapMaxDurationMs = value,
                               suffix: ' ms',
                             ),
-                            trailing: _buildTapValue('${_draft.clapMaxDurationMs} MS'),
+                            trailing: _buildTapValue(
+                                '${_draft.clapMaxDurationMs} MS'),
                           ),
                           SettingsRow(
                             label: 'ENERGY RATIO',
@@ -692,9 +713,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               initial: _draft.clapEnergyRatio.round(),
                               min: 1,
                               max: 10,
-                              onSelected: (value) => _draft.clapEnergyRatio = value.toDouble(),
+                              onSelected: (value) =>
+                                  _draft.clapEnergyRatio = value.toDouble(),
                             ),
-                            trailing: _buildTapValue('${_draft.clapEnergyRatio}x'),
+                            trailing:
+                                _buildTapValue('${_draft.clapEnergyRatio}x'),
                           ),
                           SettingsRow(
                             label: 'CLAP COOLDOWN',
@@ -703,10 +726,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               initial: _draft.clapCooldownMs,
                               min: 200,
                               max: 5000,
-                              onSelected: (value) => _draft.clapCooldownMs = value,
+                              onSelected: (value) =>
+                                  _draft.clapCooldownMs = value,
                               suffix: ' ms',
                             ),
-                            trailing: _buildTapValue('${_draft.clapCooldownMs} MS'),
+                            trailing:
+                                _buildTapValue('${_draft.clapCooldownMs} MS'),
                           ),
                           GestureDetector(
                             onTap: () {
