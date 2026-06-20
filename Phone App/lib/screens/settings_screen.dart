@@ -262,6 +262,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     SettingsRow(
+                      label: 'MAC AGENT URL',
+                      trailing: _buildTextField(
+                        controller: _macAgentController,
+                        onChanged: (value) {
+                          _draft.macAgentBaseUrl = value;
+                          _markDirty();
+                        },
+                      ),
+                    ),
+                    SettingsRow(
                       label: 'ESP32 BLE NAME',
                       trailing: _buildTextField(
                         controller: _bleController,
