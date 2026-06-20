@@ -7,4 +7,11 @@ void main() {
 
     expect(settings.openclawBaseUrl, 'http://192.168.1.15');
   });
+
+  test('persists Mac agent Tailscale URL', () {
+    final settings = AppSettings(macAgentBaseUrl: 'http://100.64.1.2:8765');
+    final restored = AppSettings.fromJsonString(settings.toJsonString());
+
+    expect(restored.macAgentBaseUrl, 'http://100.64.1.2:8765');
+  });
 }
