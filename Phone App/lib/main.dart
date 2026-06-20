@@ -14,7 +14,7 @@ import 'services/alarm_service.dart';
 import 'services/friday_service.dart';
 import 'screens/alarm_screen.dart';
 import 'screens/activity_log_screen.dart';
-import 'screens/control_screen.dart';
+import 'screens/control_pages_screen.dart';
 import 'screens/idle_screen.dart';
 import 'screens/settings_screen.dart';
 import 'widgets/alarm_overlay.dart';
@@ -73,7 +73,8 @@ void main() async {
               deviceProvider: ctx.read<DeviceProvider>(),
               activityLog: activityLog,
             );
-            ctx.read<DeviceProvider>().onSmokeAlarmDetected = provider.triggerSmokeAlarm;
+            ctx.read<DeviceProvider>().onSmokeAlarmDetected =
+                provider.triggerSmokeAlarm;
             return provider;
           },
         ),
@@ -121,8 +122,7 @@ class OpenClawApp extends StatelessWidget {
                   behavior: const _NoGlowScrollBehavior(),
                   child: child ?? const SizedBox.shrink(),
                 ),
-                if (alarm.isAlarmFiring)
-                  const AlarmOverlay(),
+                if (alarm.isAlarmFiring) const AlarmOverlay(),
               ],
             );
           },
@@ -133,7 +133,7 @@ class OpenClawApp extends StatelessWidget {
           case '/control':
             return buildAppRoute(
               settings: settings,
-              child: const ControlScreen(),
+              child: const ControlPagesScreen(),
             );
           case '/settings':
             return buildAppRoute(
