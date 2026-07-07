@@ -6,7 +6,6 @@ import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 
 import '../models/app_settings.dart';
 
