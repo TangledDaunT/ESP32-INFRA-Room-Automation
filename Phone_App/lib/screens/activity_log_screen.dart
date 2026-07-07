@@ -7,6 +7,16 @@ import '../services/activity_log_service.dart';
 import '../theme.dart';
 import '../widgets/confirm_dialog.dart';
 
+Future<void> _confirmClear(BuildContext context, ActivityLogService log) async {
+  final confirmed = await showConfirmDialog(
+    context,
+    title: 'CLEAR ACTIVITY LOG',
+    message: 'This removes all recorded activity. This cannot be undone.',
+    confirmLabel: 'CLEAR',
+  );
+  if (confirmed) log.clear();
+}
+
 class ActivityLogScreen extends StatelessWidget {
   const ActivityLogScreen({super.key});
 
