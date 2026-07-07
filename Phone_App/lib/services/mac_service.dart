@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../models/mac_agent_models.dart';
+
 class MacCommandResult {
   const MacCommandResult({
     required this.success,
@@ -39,27 +41,84 @@ class MacService {
 
   final String baseUrl;
 
-  Future<MacCommandResult> open(String target) async {
-    return _send(target: target, action: 'open');
+  String get _normalizedBase => baseUrl.replaceAll(RegExp(r'/+$'), '');
+
+  Iterable<String> get _candidateBases sync* {
+    yield _normalizedBase;
+    if (!_normalizedBase.contains('127.0.0.1')) yield 'http://127.0.0.1:8765';
+    if (!_normalizedBase.contains('localhost')) yield 'http://localhost:8765';
   }
 
-  Future<MacCommandResult> close(String target) async {
-    return _send(target: target, action: 'close');
+  Future<Map<String, dynamic>?> _getJson(String path) async {
+    for (final base in _candidateBases) {
+      try {
+        final response = await http
+            .get(Uri.parse('$base$path'))
+            .timeout(const Duration(seconds: 4));
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) return decoded;
+      } catch (_) {}
+    }
+    return null;
   }
+
+  Future<List<Map<String, dynamic>>> _getJsonList(String path) async {
+    for (final base in _candidateBases) {
+      try {
+        final response = await http
+            .get(Uri.parse('$base$path'))
+            .timeout(const Duration(seconds: 4));
+        final decoded = jsonDecode(response.body);
+        if (decoded is List) {
+            return decoded
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
+        }
+      } catch (_) {}
+    }
+    return const [];
+  }
+
+  Future<Map<String, dynamic>?> _postJson(
+    String path, [
+    Map<String, dynamic>? body,
+  ]) async {
+    for (final base in _candidateBases) {
+      try {
+        final response = await http
+            .post(
+              Uri.parse('$base$path'),
+              headers: const {'Content-Type': 'application/json'},
+              body: jsonEncode(body ?? const {}),
+            )
+            .timeout(const Duration(seconds: 15));
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) return decoded;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  Future<bool> _postOk(
+    String path, [
+    Map<String, dynamic>? body,
+  ]) async {
+    return (await _postJson(path, body)) != null;
+  }
+
+  Future<MacCommandResult> open(String target) async =>
+      _send(target: target, action: 'open');
+
+  Future<MacCommandResult> close(String target) async =>
+      _send(target: target, action: 'close');
 
   Future<MacCommandResult> _send({
     required String target,
     required String action,
   }) async {
-    final normalizedBase = baseUrl.replaceAll(RegExp(r'/+$'), '');
-    final candidateBases = <String>{
-      normalizedBase,
-      if (!normalizedBase.contains('127.0.0.1')) 'http://127.0.0.1:8765',
-      if (!normalizedBase.contains('localhost')) 'http://localhost:8765',
-    };
-
     MacCommandResult? lastFailure;
-    for (final base in candidateBases) {
+    for (final base in _candidateBases) {
       try {
         final response = await http
             .post(
@@ -90,5 +149,55 @@ class MacService {
     }
 
     return lastFailure ?? MacCommandResult.failure(target, 'Mac agent unreachable');
+  }
+
+  Future<MacSystemStatus?> fetchStatus() async {
+    final json = await _getJson('/status');
+    if (json == null) return null;
+    return MacSystemStatus.fromJson(json);
+  }
+
+  Future<List<MacNotificationItem>> fetchNotifications() async {
+    final json = await _getJsonList('/notifications');
+    return json.map(MacNotificationItem.fromJson).toList();
+  }
+
+  Future<MacCaptureResult?> takeScreenshot() async {
+    final json = await _postJson('/screenshot');
+    if (json == null) return null;
+    return MacCaptureResult.fromJson(json);
+  }
+
+  Future<MacCaptureResult?> recordScreen({int durationSeconds = 10}) async {
+    final json = await _postJson('/screen-record', {
+      'durationSeconds': durationSeconds,
+    });
+    if (json == null) return null;
+    return MacCaptureResult.fromJson(json);
+  }
+
+  Future<List<MacAudioDevice>> fetchOutputDevices() async {
+    final json = await _getJsonList('/media/output-devices');
+    return json.map(MacAudioDevice.fromJson).toList();
+  }
+
+  Future<bool> mediaPlayPause() async => _postOk('/media/play-pause');
+  Future<bool> mediaNext() async => _postOk('/media/next');
+  Future<bool> mediaPrevious() async => _postOk('/media/previous');
+
+  Future<bool> setVolume(int level) async {
+    return _postOk('/media/volume', {'level': level});
+  }
+
+  Future<bool> setOutputDevice(String deviceId) async {
+    return _postOk('/media/output-device', {'deviceId': deviceId});
+  }
+
+  Future<bool> dismissNotification(String id) async {
+    return _postOk('/notifications/$id/action', {'action': 'dismiss'});
+  }
+
+  Future<bool> openNotification(String id) async {
+    return _postOk('/notifications/$id/action', {'action': 'open'});
   }
 }
