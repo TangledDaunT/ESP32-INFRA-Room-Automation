@@ -9,6 +9,11 @@ class MacSystemStatus {
     this.batteryCharging,
     this.wifiSsid,
     this.wifiDevice,
+    this.hostname,
+    this.macosVersion,
+    this.uptimeSeconds,
+    this.agentCpuPercent,
+    this.agentMemoryMb,
   });
 
   final bool reachable;
@@ -20,6 +25,11 @@ class MacSystemStatus {
   final double memoryPercent;
   final double diskPercent;
   final double timestamp;
+  final String? hostname;
+  final String? macosVersion;
+  final double? uptimeSeconds;
+  final double? agentCpuPercent;
+  final double? agentMemoryMb;
 
   factory MacSystemStatus.fromJson(Map<String, dynamic> json) {
     return MacSystemStatus(
@@ -32,6 +42,11 @@ class MacSystemStatus {
       memoryPercent: (json['memoryPercent'] as num?)?.toDouble() ?? 0,
       diskPercent: (json['diskPercent'] as num?)?.toDouble() ?? 0,
       timestamp: (json['timestamp'] as num?)?.toDouble() ?? 0,
+      hostname: json['hostname']?.toString(),
+      macosVersion: json['macosVersion']?.toString(),
+      uptimeSeconds: (json['uptimeSeconds'] as num?)?.toDouble(),
+      agentCpuPercent: (json['agentCpuPercent'] as num?)?.toDouble(),
+      agentMemoryMb: (json['agentMemoryMb'] as num?)?.toDouble(),
     );
   }
 }
