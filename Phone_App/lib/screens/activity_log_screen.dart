@@ -6,6 +6,7 @@ import '../models/activity_log_entry.dart';
 import '../services/activity_log_service.dart';
 import '../theme.dart';
 import '../widgets/confirm_dialog.dart';
+import '../widgets/staggered_reveal.dart';
 
 Future<void> _confirmClear(BuildContext context, ActivityLogService log) async {
   final confirmed = await showConfirmDialog(
@@ -87,7 +88,10 @@ class ActivityLogScreen extends StatelessWidget {
                           ),
                         )
                       else
-                        ...entries.map((entry) => _LogTile(entry: entry)),
+                        ...entries.asMap().entries.map((e) => StaggeredReveal(
+                              index: e.key,
+                              child: _LogTile(entry: e.value),
+                            )),
                       const SizedBox(height: AppSpace.xxl),
                     ]),
                   ),

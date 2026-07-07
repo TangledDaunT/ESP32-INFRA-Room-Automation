@@ -11,6 +11,7 @@ import '../services/mac_service.dart';
 import '../services/page_activity_controller.dart';
 import '../theme.dart';
 import '../widgets/glass_container.dart';
+import '../widgets/staggered_reveal.dart';
 
 class MacMediaScreen extends StatefulWidget {
   const MacMediaScreen({super.key});
@@ -328,32 +329,35 @@ class _MacMediaScreenState extends State<MacMediaScreen> {
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final item = _notifications[index];
-                      return GlassContainer(
-                        borderRadius: 18,
-                        padding: const EdgeInsets.all(14),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item.appName, style: AppTextStyles.bodyLG(color: AppColors.white90)),
-                                  const SizedBox(height: 4),
-                                  Text(item.summary, style: AppTextStyles.labelSM(color: AppColors.white40)),
-                                ],
+                      return StaggeredReveal(
+                        index: index,
+                        child: GlassContainer(
+                          borderRadius: 18,
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(item.appName, style: AppTextStyles.bodyLG(color: AppColors.white90)),
+                                    const SizedBox(height: 4),
+                                    Text(item.summary, style: AppTextStyles.labelSM(color: AppColors.white40)),
+                                  ],
+                                ),
                               ),
-                            ),
-                            IconButton(
-                              tooltip: 'Open app',
-                              onPressed: _busy ? null : () => _openNotification(item.id),
-                              icon: const Icon(Symbols.open_in_new, size: 18),
-                            ),
-                            IconButton(
-                              tooltip: 'Dismiss',
-                              onPressed: _busy ? null : () => _dismissNotification(item.id),
-                              icon: const Icon(Symbols.close, size: 18),
-                            ),
-                          ],
+                              IconButton(
+                                tooltip: 'Open app',
+                                onPressed: _busy ? null : () => _openNotification(item.id),
+                                icon: const Icon(Symbols.open_in_new, size: 18),
+                              ),
+                              IconButton(
+                                tooltip: 'Dismiss',
+                                onPressed: _busy ? null : () => _dismissNotification(item.id),
+                                icon: const Icon(Symbols.close, size: 18),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
