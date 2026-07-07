@@ -46,35 +46,22 @@ class AlarmProvider extends ChangeNotifier {
   void _onAlarmFired(AlarmModel alarm) {
     _firingAlarm = alarm;
     _isAlarmFiring = true;
-    _dismissed = false;
 
     if (alarm.kind == AlarmKind.smoke) {
       _activityLog.addAlarm('Smoke alarm', alarm.label.isEmpty ? 'Smoke threshold crossed' : alarm.label);
       _alarmService.startAudioLoop();
-      _startSmokeFlash();
+      _activateSmokeLighting();
     } else {
       _activityLog.addAlarm('Scheduled alarm', alarm.label.isEmpty ? alarm.timeString : alarm.label);
 
-      // Turn on ESP32 LED strip (relay 2 = RGB) at full brightness
+      // Turn on ESP32 LED strip (relay 2 = RGB) and backup flashlight at
+      // full brightness once — the flashing look itself is rendered
+      // locally by AlarmOverlay's pulse/ring animation, not by toggling
+      // the relays repeatedly.
       _deviceProvider.setRgb(true);
       _deviceProvider.setRgbBrightness(255);
-
-      // Initial flashlight turn on
-      _flashState = true;
       _deviceProvider.setBackupBrightness(255);
       HapticFeedback.vibrate();
-
-      // Flash the flashlight on and off repeatedly (every 500ms)
-      _flashTimer?.cancel();
-      _flashTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
-        if (_dismissed) {
-          timer.cancel();
-          return;
-        }
-        _flashState = !_flashState;
-        _deviceProvider.setBackupBrightness(_flashState ? 255 : 0);
-        HapticFeedback.vibrate();
-      });
     }
 
     notifyListeners();
@@ -90,29 +77,17 @@ class AlarmProvider extends ChangeNotifier {
       kind: AlarmKind.smoke,
     );
     _isAlarmFiring = true;
-    _dismissed = false;
     _activityLog.addSystem('Smoke alarm triggered', label);
     _alarmService.startAudioLoop();
-    _startSmokeFlash();
+    _activateSmokeLighting();
     notifyListeners();
   }
 
-  void _startSmokeFlash() {
-    _flashTimer?.cancel();
+  void _activateSmokeLighting() {
     _deviceProvider.setBackupBrightness(0);
     _deviceProvider.setRgb(true);
     _deviceProvider.setRgbBrightness(255);
-
-    _flashState = true;
-    _flashTimer = Timer.periodic(const Duration(milliseconds: 300), (timer) {
-      if (_dismissed) {
-        timer.cancel();
-        return;
-      }
-      _flashState = !_flashState;
-      _deviceProvider.setRgbBrightness(_flashState ? 255 : 0);
-      HapticFeedback.vibrate();
-    });
+    HapticFeedback.vibrate();
   }
 
   // ── Snooze ─────────────────────────────────────────────────
