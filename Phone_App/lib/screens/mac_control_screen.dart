@@ -9,6 +9,7 @@ import '../services/mac_service.dart';
 import '../services/page_activity_controller.dart';
 import '../theme.dart';
 import '../widgets/glass_action_button.dart';
+import '../widgets/staggered_reveal.dart';
 
 class MacControlScreen extends StatefulWidget {
   const MacControlScreen({super.key});
