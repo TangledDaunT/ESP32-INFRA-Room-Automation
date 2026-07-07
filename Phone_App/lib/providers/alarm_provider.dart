@@ -155,7 +155,9 @@ class AlarmProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _flashTimer?.cancel();
+    if (identical(_alarmService.onAlarmFired, _onAlarmFired)) {
+      _alarmService.onAlarmFired = null;
+    }
     super.dispose();
   }
 }
