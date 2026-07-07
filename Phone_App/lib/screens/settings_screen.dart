@@ -29,6 +29,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _macAgentController;
   late TextEditingController _bleController;
   late TextEditingController _historyController;
+  late TextEditingController _pushoverUserKeyController;
+  late TextEditingController _pushoverApiTokenController;
 
   bool _showPassword = false;
   bool _advancedExpanded = false;
@@ -48,6 +50,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _macAgentController = TextEditingController(text: _draft.macAgentBaseUrl);
     _bleController = TextEditingController(text: _draft.bleDeviceName);
     _historyController = TextEditingController(text: _draft.historySyncUrl);
+    _pushoverUserKeyController =
+        TextEditingController(text: _draft.motionDetectUserKey);
+    _pushoverApiTokenController =
+        TextEditingController(text: _draft.motionDetectApiToken);
   }
 
   @override
@@ -60,6 +66,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _macAgentController.dispose();
     _bleController.dispose();
     _historyController.dispose();
+    _pushoverUserKeyController.dispose();
+    _pushoverApiTokenController.dispose();
     super.dispose();
   }
 
@@ -651,6 +659,88 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   color: Colors.white.withValues(alpha: 0.35),
                                   letterSpacing: 1.0,
                                 ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                  left: 16, top: 20, bottom: 6),
+                              child: Text(
+                                'MOTION DETECT',
+                                style: AppTextStyles.labelSM().copyWith(
+                                  color: Colors.white.withValues(alpha: 0.35),
+                                  letterSpacing: 2.0,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                            SettingsRow(
+                              label: 'ENABLED',
+                              onTap: () {
+                                setState(() {
+                                  _draft.motionDetectEnabled =
+                                      !_draft.motionDetectEnabled;
+                                  _dirty = true;
+                                });
+                              },
+                              trailing: ToggleSwitch(
+                                  value: _draft.motionDetectEnabled),
+                            ),
+                            SettingsRow(
+                              label: 'PUSHOVER USER KEY',
+                              trailing: SizedBox(
+                                width: 180,
+                                child: _buildTextField(
+                                  controller: _pushoverUserKeyController,
+                                  obscureText: true,
+                                  onChanged: (value) {
+                                    _draft.motionDetectUserKey = value;
+                                    _markDirty();
+                                  },
+                                ),
+                              ),
+                            ),
+                            SettingsRow(
+                              label: 'PUSHOVER API TOKEN',
+                              trailing: SizedBox(
+                                width: 180,
+                                child: _buildTextField(
+                                  controller: _pushoverApiTokenController,
+                                  obscureText: true,
+                                  onChanged: (value) {
+                                    _draft.motionDetectApiToken = value;
+                                    _markDirty();
+                                  },
+                                ),
+                              ),
+                            ),
+                            SettingsRow(
+                              label: 'SENSITIVITY',
+                              onTap: () => _pickNumber(
+                                title: 'MOTION SENSITIVITY',
+                                initial: _draft.motionSensitivity.round(),
+                                min: 1,
+                                max: 20,
+                                onSelected: (value) =>
+                                    _draft.motionSensitivity = value.toDouble(),
+                                suffix: ' %',
+                              ),
+                              trailing: _buildTapValue(
+                                '${_draft.motionSensitivity.round()} %',
+                              ),
+                            ),
+                            SettingsRow(
+                              label: 'COOLDOWN',
+                              onTap: () => _pickNumber(
+                                title: 'MOTION COOLDOWN (s)',
+                                initial: (_draft.motionDebounceMs / 1000).round(),
+                                min: 5,
+                                max: 300,
+                                onSelected: (value) =>
+                                    _draft.motionDebounceMs = value * 1000,
+                                suffix: ' SEC',
+                              ),
+                              trailing: _buildTapValue(
+                                '${(_draft.motionDebounceMs / 1000).round()} SEC',
                               ),
                             ),
                             SettingsRow(

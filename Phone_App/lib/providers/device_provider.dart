@@ -1,5 +1,6 @@
 // lib/providers/device_provider.dart
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart'
@@ -15,6 +16,7 @@ import '../services/sleep_service.dart';
 import '../services/spotify_service.dart';
 import '../models/spotify_track.dart';
 import '../services/wakeup_service.dart';
+import '../services/motion_detector.dart';
 
 class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
   late final OpenClawService _openclaw;
@@ -22,6 +24,7 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
   late final SleepService _sleep;
   late final WakeupService _wakeup;
   late final SpotifyService _spotify;
+  late final MotionDetector _motion;
   final ActivityLogService _activityLog;
   AlarmService? _alarmService;
 
@@ -49,6 +52,12 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
     _sleep = SleepService(_settings);
     _wakeup = WakeupService(_settings);
     _spotify = SpotifyService(_settings);
+    _motion = MotionDetector(
+      settings: _settings,
+      onStatusChanged: _onMotionStatusChanged,
+      onMotionDetected: _onMotionDetected,
+      onError: _onMotionError,
+    );
 
     _setupCallbacks();
     _init();
@@ -65,6 +74,7 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
   bool get clapDetectorHealthy => _clapDetectorHealthy;
   AppSettings get settings => _settings;
   SpotifyTrack? get currentTrack => _spotify.currentTrack;
+  bool get motionDetectActive => _state.motionDetectActive;
 
   void _setupCallbacks() {
     // ── OpenClaw state sync ────────────────────────────
@@ -225,6 +235,52 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
       presence: _state.presenceDetected,
       anyLightOn: _state.anyLightOn,
     );
+  }
+
+  // ── Motion Detection ──────────────────────────────────
+
+  Future<bool> startMotionDetection() async {
+    if (!_settings.motionDetectEnabled) return false;
+    if (_state.motionDetectActive) return true;
+
+    final success = await _motion.start();
+    if (success) {
+      _updateState(_state.copyWith(
+        motionDetectActive: true,
+        motionStatus: 'STANDBY',
+      ));
+      _logCommand('Motion Detect', 'ON');
+    }
+    return success;
+  }
+
+  Future<void> stopMotionDetection() async {
+    if (!_state.motionDetectActive) return;
+    await _motion.stop();
+    _updateState(_state.copyWith(
+      motionDetectActive: false,
+      motionStatus: 'IDLE',
+    ));
+    _logCommand('Motion Detect', 'OFF');
+  }
+
+  void _onMotionStatusChanged(String status) {
+    _updateState(_state.copyWith(motionStatus: status));
+  }
+
+  void _onMotionDetected(Uint8List imageBytes) {
+    _updateState(_state.copyWith(
+      lastMotionDetected: DateTime.now(),
+      motionEventCount: _state.motionEventCount + 1,
+    ));
+    _activityLog.addAutomation(
+      'Motion detected',
+      'Pushover alert sent with photo',
+    );
+  }
+
+  void _onMotionError(String error) {
+    _activityLog.addAutomation('Motion detect error', error);
   }
 
   // ── WebSocket Incoming ─────────────────────────────────────
@@ -467,6 +523,7 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
     _sleep.dispose();
     _wakeup.dispose();
     _spotify.dispose();
+    _motion.dispose();
     _rampTimer?.cancel();
     _clapIndicatorTimer?.cancel();
     super.dispose();

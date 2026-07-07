@@ -14,6 +14,9 @@
     <!-- Microphone for clap detection + intimacy mode -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 
+    <!-- Camera for motion detection -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+
     <!-- Bluetooth (covers Android 9/10 for Galaxy J6) -->
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>

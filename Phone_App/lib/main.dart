@@ -13,8 +13,10 @@ import 'services/activity_log_service.dart';
 import 'services/alarm_service.dart';
 import 'screens/alarm_screen.dart';
 import 'screens/activity_log_screen.dart';
+import 'screens/alarm_screen.dart';
 import 'screens/control_pages_screen.dart';
 import 'screens/idle_screen.dart';
+import 'screens/motion_feed_screen.dart';
 import 'screens/settings_screen.dart';
 import 'widgets/alarm_overlay.dart';
 import 'theme.dart';
@@ -140,6 +142,11 @@ class OpenClawApp extends StatelessWidget {
             return buildAppRoute(
               settings: settings,
               child: const AlarmScreen(),
+            );
+          case '/motion_feed':
+            return buildAppRoute(
+              settings: settings,
+              child: const MotionFeedScreen(),
             );
           case '/activity':
             return buildAppRoute(

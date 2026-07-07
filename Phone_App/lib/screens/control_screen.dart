@@ -249,6 +249,20 @@ class _ControlScreenState extends State<ControlScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               _BottomActionButton(
+                                icon: Symbols.motion_photos_on,
+                                label: 'MOTION',
+                                onTap: () async {
+                                  final activity =
+                                      context.read<PageActivityController>();
+                                  activity.pause();
+                                  await Navigator.of(context)
+                                      .pushNamed('/motion_feed')
+                                      .then((_) {
+                                    if (mounted) activity.resume();
+                                  });
+                                },
+                              ),
+                              _BottomActionButton(
                                 icon: Symbols.settings,
                                 label: 'SETTINGS',
                                 onTap: _openSettings,

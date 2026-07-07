@@ -91,6 +91,13 @@ RECORDING_DIR.mkdir(parents=True, exist_ok=True)
 
 _WIFI_DEVICE: str | None = None
 _PSUTIL_PRIMED = False
+_SELF_PROCESS = psutil.Process(os.getpid())
+
+# FastAPI runs sync `def` routes in a thread pool, so concurrent requests
+# can race on these module-level caches — guard each with a small lock.
+_STATUS_LOCK = threading.Lock()
+_NOTIFICATION_LOCK = threading.Lock()
+_MEDIA_LOCK = threading.Lock()
 
 
 class CommandRequest(BaseModel):
@@ -115,6 +122,11 @@ class StatusResponse(BaseModel):
     memoryPercent: float
     diskPercent: float
     timestamp: float
+    hostname: str
+    macosVersion: str | None = None
+    uptimeSeconds: float
+    agentCpuPercent: float
+    agentMemoryMb: float
 
 
 class NotificationResponse(BaseModel):
@@ -173,6 +185,7 @@ def _prime_psutil() -> None:
     global _PSUTIL_PRIMED
     if not _PSUTIL_PRIMED:
         psutil.cpu_percent(interval=None)
+        _SELF_PROCESS.cpu_percent(interval=None)
         _PSUTIL_PRIMED = True
 
 
@@ -210,6 +223,7 @@ def _capture_status() -> SystemStatus:
     _prime_psutil()
     battery = psutil.sensors_battery()
     disk = psutil.disk_usage("/")
+    macos_version = platform.mac_ver()[0]
     return SystemStatus(
         reachable=True,
         battery_percent=battery.percent if battery else None,
@@ -220,15 +234,24 @@ def _capture_status() -> SystemStatus:
         memory_percent=round(psutil.virtual_memory().percent, 1),
         disk_percent=round(disk.percent, 1),
         timestamp=time.time(),
+        hostname=socket.gethostname(),
+        macos_version=macos_version or None,
+        uptime_seconds=round(time.time() - psutil.boot_time(), 1),
+        # The agent's own footprint — cheap to sample (same cached cadence
+        # as everything else here) and lets the phone-side status page show
+        # that this "always-on" helper barely uses any resources.
+        agent_cpu_percent=round(_SELF_PROCESS.cpu_percent(interval=None), 2),
+        agent_memory_mb=round(_SELF_PROCESS.memory_info().rss / (1024 * 1024), 1),
     )
 
 
 def _status() -> SystemStatus:
     global SYSTEM_VERSION_CACHE
-    now = time.time()
-    if SYSTEM_VERSION_CACHE is None or now - SYSTEM_VERSION_CACHE.timestamp > 10:
-        SYSTEM_VERSION_CACHE = _capture_status()
-    return SYSTEM_VERSION_CACHE
+    with _STATUS_LOCK:
+        now = time.time()
+        if SYSTEM_VERSION_CACHE is None or now - SYSTEM_VERSION_CACHE.timestamp > 10:
+            SYSTEM_VERSION_CACHE = _capture_status()
+        return SYSTEM_VERSION_CACHE
 
 
 def _notification_summary(line: str) -> NotificationItem | None:
@@ -259,34 +282,35 @@ def _notification_summary(line: str) -> NotificationItem | None:
 
 def _refresh_notifications() -> list[NotificationItem]:
     global NOTIFICATION_CACHE, NOTIFICATION_CACHE_TS
-    now = time.time()
-    if NOTIFICATION_CACHE and now - NOTIFICATION_CACHE_TS < 20:
+    with _NOTIFICATION_LOCK:
+        now = time.time()
+        if NOTIFICATION_CACHE and now - NOTIFICATION_CACHE_TS < 20:
+            return NOTIFICATION_CACHE
+
+        result = _run([
+            "log",
+            "show",
+            "--last",
+            "2m",
+            "--style",
+            "compact",
+            "--predicate",
+            'process == "NotificationCenter"',
+        ])
+        items: list[NotificationItem] = []
+        if result.returncode == 0:
+            seen: set[str] = set()
+            for line in result.stdout.splitlines():
+                if "NotificationRecord" not in line:
+                    continue
+                item = _notification_summary(line)
+                if item and item.id not in seen:
+                    seen.add(item.id)
+                    items.append(item)
+
+        NOTIFICATION_CACHE = items[-10:]
+        NOTIFICATION_CACHE_TS = now
         return NOTIFICATION_CACHE
-
-    result = _run([
-        "log",
-        "show",
-        "--last",
-        "2m",
-        "--style",
-        "compact",
-        "--predicate",
-        'process == "NotificationCenter"',
-    ])
-    items: list[NotificationItem] = []
-    if result.returncode == 0:
-        seen: set[str] = set()
-        for line in result.stdout.splitlines():
-            if "NotificationRecord" not in line:
-                continue
-            item = _notification_summary(line)
-            if item and item.id not in seen:
-                seen.add(item.id)
-                items.append(item)
-
-    NOTIFICATION_CACHE = items[-10:]
-    NOTIFICATION_CACHE_TS = now
-    return NOTIFICATION_CACHE
 
 
 def _find_switch_audio_source() -> str | None:
@@ -301,27 +325,28 @@ def _find_switch_audio_source() -> str | None:
 
 def _list_media_outputs() -> list[MediaDevice]:
     global MEDIA_OUTPUTS_CACHE, MEDIA_OUTPUTS_CACHE_TS
-    now = time.time()
-    if MEDIA_OUTPUTS_CACHE and now - MEDIA_OUTPUTS_CACHE_TS < 60:
-        return MEDIA_OUTPUTS_CACHE
+    with _MEDIA_LOCK:
+        now = time.time()
+        if MEDIA_OUTPUTS_CACHE and now - MEDIA_OUTPUTS_CACHE_TS < 60:
+            return MEDIA_OUTPUTS_CACHE
 
-    binary = _find_switch_audio_source()
-    if not binary:
-        MEDIA_OUTPUTS_CACHE = []
+        binary = _find_switch_audio_source()
+        if not binary:
+            MEDIA_OUTPUTS_CACHE = []
+            MEDIA_OUTPUTS_CACHE_TS = now
+            return MEDIA_OUTPUTS_CACHE
+
+        result = _run([binary, "-a", "-t", "output"])
+        devices: list[MediaDevice] = []
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                name = line.strip()
+                if name:
+                    devices.append(MediaDevice(id=name, name=name))
+
+        MEDIA_OUTPUTS_CACHE = devices
         MEDIA_OUTPUTS_CACHE_TS = now
         return MEDIA_OUTPUTS_CACHE
-
-    result = _run([binary, "-a", "-t", "output"])
-    devices: list[MediaDevice] = []
-    if result.returncode == 0:
-        for line in result.stdout.splitlines():
-            name = line.strip()
-            if name:
-                devices.append(MediaDevice(id=name, name=name))
-
-    MEDIA_OUTPUTS_CACHE = devices
-    MEDIA_OUTPUTS_CACHE_TS = now
-    return MEDIA_OUTPUTS_CACHE
 
 
 def _screenshot_file() -> Path:
@@ -521,6 +546,11 @@ def status() -> StatusResponse:
         memoryPercent=s.memory_percent,
         diskPercent=s.disk_percent,
         timestamp=s.timestamp,
+        hostname=s.hostname,
+        macosVersion=s.macos_version,
+        uptimeSeconds=s.uptime_seconds,
+        agentCpuPercent=s.agent_cpu_percent,
+        agentMemoryMb=s.agent_memory_mb,
     )
 
 
@@ -544,7 +574,9 @@ def notifications() -> list[NotificationResponse]:
 def notification_action(notification_id: str, request: NotificationActionRequest) -> dict[str, str]:
     if request.action == "dismiss":
         global NOTIFICATION_CACHE
-        NOTIFICATION_CACHE = [item for item in _refresh_notifications() if item.id != notification_id]
+        items = _refresh_notifications()
+        with _NOTIFICATION_LOCK:
+            NOTIFICATION_CACHE = [item for item in items if item.id != notification_id]
         return {"status": "dismissed", "id": notification_id}
 
     items = _refresh_notifications()
