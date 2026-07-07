@@ -564,10 +564,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 _dirty = true;
                               });
                             },
-                            trailing: _buildTapValue(
-                              _draft.presenceAutoRestoreLight
-                                  ? 'ENABLED'
-                                  : 'DISABLED',
+                            trailing: ToggleSwitch(
+                              value: _draft.presenceAutoRestoreLight,
                             ),
                           ),
                           Padding(
