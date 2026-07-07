@@ -128,14 +128,15 @@ class ClapDetector {
   }
 
   void _handleSingleClap() {
-    onSingleClap?.call();
-
     _clapCount++;
     if (_clapCount >= 2) {
+      // Second clap of the pair — report only the double-clap, not a
+      // redundant single-clap for the same gesture.
       _clapCount = 0;
       _clapResetTimer?.cancel();
       onDoubleClap?.call();
     } else {
+      onSingleClap?.call();
       _clapResetTimer?.cancel();
       _clapResetTimer = Timer(Duration(milliseconds: clapWindowMs), () {
         _clapCount = 0;
@@ -166,9 +167,12 @@ class ClapDetector {
     final receivePort = ReceivePort();
     sendPort.send(receivePort.sendPort); // Send back port for two-way comms
 
-    final List<int> audioBuffer = [];
     const int frameSize = 1024;
     const int sampleRate = 16000;
+    final _RingBuffer audioBuffer = _RingBuffer(frameSize * 4);
+    // Reused across every candidate frame — a fresh FFT plan/twiddle-table
+    // allocation per clap was avoidable CPU/GC churn on weak hardware.
+    final FFT fft = FFT(frameSize);
 
     // Rolling noise floor (last 2 seconds = ~31 frames)
     final List<double> rmsHistory = [];
@@ -176,6 +180,7 @@ class ClapDetector {
 
     // State for clap validation
     int cooldownFrames = 0; // Prevent rapid triggers
+    int consecutiveAboveThreshold = 0; // frames the RMS has stayed elevated
     double dbThreshold = 15.0; // Default matching AppSettings
     double clapMinFreqKhz = 2.0;
     double clapMaxFreqKhz = 8.0;
@@ -202,7 +207,7 @@ class ClapDetector {
       } else if (message is AudioChunkMsg) {
         // Convert Uint8List (bytes) to 16-bit PCM samples
         final bytes = message.chunk;
-        
+
         final Int16List int16List;
         if (bytes.offsetInBytes % 2 == 0) {
           int16List = Int16List.view(
@@ -213,17 +218,16 @@ class ClapDetector {
           int16List = Int16List.view(
               alignedBytes.buffer, 0, alignedBytes.lengthInBytes ~/ 2);
         }
-        
+
         audioBuffer.addAll(int16List);
 
         // Process frames
         while (audioBuffer.length >= frameSize) {
-          final frame = audioBuffer.sublist(0, frameSize);
-          audioBuffer.removeRange(0, frameSize);
+          final frame = audioBuffer.takeFrame(frameSize);
 
           if (cooldownFrames > 0) cooldownFrames--;
 
-            // 1. RMS Calculation
+          // 1. RMS Calculation
           double sumSquares = 0;
           for (var sample in frame) {
             sumSquares += (sample * sample);
@@ -234,17 +238,24 @@ class ClapDetector {
           final db = rms > 0 ? 20 * log10(rms) : 0.0;
           sendPort.send(RmsUpdateMsg(db));
 
+          // Capture the *previous* frame's RMS before this frame overwrites
+          // rmsHistory's tail — reading rmsHistory.last after the add() below
+          // would just be this frame's own rms, making attack-speed always 0.
+          final double previousRms = rmsHistory.isNotEmpty ? rmsHistory.last : rms;
+
           // Maintain noise floor history
           rmsHistory.add(rms);
           if (rmsHistory.length > historySize) rmsHistory.removeAt(0);
 
+          if (rms > dynamicRmsThreshold(rmsHistory, dbThreshold)) {
+            consecutiveAboveThreshold++;
+          } else {
+            consecutiveAboveThreshold = 0;
+          }
+
           if (rmsHistory.length < 5 || cooldownFrames > 0) continue;
 
-          final noiseFloor =
-              rmsHistory.reduce((a, b) => a + b) / rmsHistory.length;
-          // 2. Adaptive threshold: combine ratio + absolute floor
-          final double ratio = pow(10.0, dbThreshold / 20.0).toDouble();
-          final double dynamicThreshold = noiseFloor * ratio + 200.0; // absolute floor
+          final dynamicThreshold = dynamicRmsThreshold(rmsHistory, dbThreshold);
 
           if (rms > dynamicThreshold) {
             // 3. Pre-processing: optional high-pass to remove fan/EMI
@@ -267,8 +278,7 @@ class ClapDetector {
               }
             }
 
-            // 4. FFT and band energy calculation
-            final fft = FFT(frameSize);
+            // 4. FFT and band energy calculation (fft instance reused above)
             final spectrum = fft.realFft(floatFrame);
             final magnitudes = spectrum.magnitudes();
 
@@ -286,18 +296,18 @@ class ClapDetector {
 
             final clapRatio = clapEnergy / (lowEnergy + 1.0);
 
-            // 5. Attack-speed check (simple derivative)
-            // store previous RMS in static-like closure by using a map holder
-            // For simplicity, keep previousRms local static via a list
-            // We will reuse rmsHistory last value as previous
-            final double previousRms = rmsHistory.isNotEmpty ? rmsHistory.last : 0.0;
+            // 5. Attack-speed check (simple derivative vs the prior frame)
             final double attackSpeed = rms - previousRms;
 
             if (attackSpeed > 0 && clapRatio >= clapEnergyRatio) {
-              // Duration check: approximate via frameDurationMs
-              if (frameDurationMs <= clapMaxDurationMs) {
+              // Duration check: reject sounds that have already been
+              // elevated for longer than clapMaxDurationMs — a real clap is
+              // a brief transient, not a sustained loud sound. Resolution
+              // is limited to one frame period (~frameDurationMs).
+              final eventDurationMs = consecutiveAboveThreshold * frameDurationMs;
+              if (eventDurationMs <= clapMaxDurationMs) {
                 sendPort.send(ClapDetectedMsg());
-                cooldownFrames = (clapCooldownMs / (frameDurationMs)).round();
+                cooldownFrames = (clapCooldownMs / frameDurationMs).round();
               }
             }
           }
@@ -307,4 +317,52 @@ class ClapDetector {
   }
 
   static double log10(num x) => log(x) / ln10;
+}
+
+/// Adaptive RMS threshold: noise floor (rolling average) scaled by the
+/// configured dB ratio, plus a small absolute floor.
+double dynamicRmsThreshold(List<double> rmsHistory, double dbThresholdDb) {
+  final noiseFloor = rmsHistory.reduce((a, b) => a + b) / rmsHistory.length;
+  final ratio = pow(10.0, dbThresholdDb / 20.0).toDouble();
+  return noiseFloor * ratio + 200.0;
+}
+
+/// Fixed-capacity ring buffer of 16-bit PCM samples for the always-on DSP
+/// isolate. Frames are extracted with [takeFrame], which advances the read
+/// cursor in O(frameSize) — unlike a plain `List<int>` drained with
+/// `sublist`+`removeRange`, which shifts the entire remaining backlog on
+/// every single frame for the lifetime of the isolate.
+class _RingBuffer {
+  _RingBuffer(int capacity) : _data = Int16List(capacity);
+
+  final Int16List _data;
+  int _start = 0;
+  int _length = 0;
+
+  int get length => _length;
+
+  void addAll(Int16List samples) {
+    final capacity = _data.length;
+    for (final sample in samples) {
+      _data[(_start + _length) % capacity] = sample;
+      if (_length < capacity) {
+        _length++;
+      } else {
+        // Buffer is full (processing fell behind) — drop the oldest sample.
+        _start = (_start + 1) % capacity;
+      }
+    }
+  }
+
+  /// Copies out the oldest [frameSize] samples and advances past them.
+  Int16List takeFrame(int frameSize) {
+    final capacity = _data.length;
+    final frame = Int16List(frameSize);
+    for (int i = 0; i < frameSize; i++) {
+      frame[i] = _data[(_start + i) % capacity];
+    }
+    _start = (_start + frameSize) % capacity;
+    _length -= frameSize;
+    return frame;
+  }
 }

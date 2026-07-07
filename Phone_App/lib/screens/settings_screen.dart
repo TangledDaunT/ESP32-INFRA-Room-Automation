@@ -697,7 +697,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onTap: () => _pickNumber(
                               title: 'MAX DURATION (ms)',
                               initial: _draft.clapMaxDurationMs,
-                              min: 50,
+                              // DSP frame resolution is ~64ms (1024 samples
+                              // @ 16kHz) — values below that can never match.
+                              min: 64,
                               max: 500,
                               onSelected: (value) =>
                                   _draft.clapMaxDurationMs = value,

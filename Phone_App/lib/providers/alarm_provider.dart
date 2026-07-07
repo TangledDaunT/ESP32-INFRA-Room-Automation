@@ -1,5 +1,4 @@
 // lib/providers/alarm_provider.dart
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../models/alarm_model.dart';
@@ -10,7 +9,12 @@ import 'device_provider.dart';
 /// Orchestrates alarm state for the UI.
 ///
 /// - Bridges [AlarmService] → [DeviceProvider] when an alarm fires.
-/// - When firing: turns on ESP32 LED strip + backup flashlight, plays sound.
+/// - When firing: turns on ESP32 LED strip + backup flashlight once, plays
+///   sound. The actual "flashing" look is a purely local animation in
+///   [AlarmOverlay] (its pulsing glow + expanding ring) — earlier this
+///   toggled the ESP32 relays on/off over HTTP every 300-500ms for the
+///   entire duration of an unacknowledged alarm, which is unnecessary
+///   network load for a visual effect the overlay already renders locally.
 /// - Exposes [isAlarmFiring] for overlay visibility.
 /// - Exposes [firingAlarm] for display in the overlay.
 class AlarmProvider extends ChangeNotifier {
@@ -20,10 +24,6 @@ class AlarmProvider extends ChangeNotifier {
 
   AlarmModel? _firingAlarm;
   bool _isAlarmFiring = false;
-
-  Timer? _flashTimer;
-  bool _flashState = false;
-  bool _dismissed = false;
 
   AlarmProvider({
     required AlarmService alarmService,
