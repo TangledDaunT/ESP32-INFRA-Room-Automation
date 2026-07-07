@@ -535,9 +535,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 _dirty = true;
                               });
                             },
-                            trailing: _buildTapValue(
-                              _draft.mqttUseTls ? 'ENABLED' : 'DISABLED',
-                            ),
+                            // Row itself is already the full tap target
+                            // (see onTap above) — the switch is a visual
+                            // indicator only, so it doesn't fire its own
+                            // nested tap handler on top of the row's.
+                            trailing: ToggleSwitch(value: _draft.mqttUseTls),
                           ),
                           SettingsRow(
                             label: 'CLAP WINDOW',
