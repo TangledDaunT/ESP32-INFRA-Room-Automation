@@ -225,7 +225,11 @@ class AppSettings {
         wakeUpRampMinutes: json['wakeUpRampMinutes'] ?? 30,
         smokeAlarmThreshold: (json['smokeAlarmThreshold'] ?? 600.0).toDouble(),
         idleTimeoutSeconds: json['idleTimeoutSeconds'] ?? 30,
-        clapDbThreshold: (json['clapDbThreshold'] ?? 15.0).toDouble(),
+        // Kept in sync with the AppSettings() constructor default above —
+        // this previously defaulted to 15.0 here (and in ClapDetector's own
+        // constructor) while the constructor default was 8.0, so a fresh
+        // install vs. a settings blob missing this key behaved differently.
+        clapDbThreshold: (json['clapDbThreshold'] ?? 8.0).toDouble(),
         clapWindowMs: json['clapWindowMs'] ?? 1500,
         clapMinFreqKhz: (json['clapMinFreqKhz'] ?? 2.0).toDouble(),
         clapMaxFreqKhz: (json['clapMaxFreqKhz'] ?? 8.0).toDouble(),

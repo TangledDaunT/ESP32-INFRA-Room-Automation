@@ -120,6 +120,11 @@ class AlarmService {
 
   // ── Alarm checking ─────────────────────────────────────────
 
+  // Minutes an alarm tolerates being late by before giving up on firing —
+  // covers a single missed 30s `_checkTimer` tick (e.g. under Android
+  // Doze) without risking firing far later than scheduled.
+  static const int _graceMinutes = 2;
+
   void _check() {
     final now = DateTime.now();
     final nowEncoded = now.hour * 60 + now.minute;
@@ -141,12 +146,15 @@ class AlarmService {
     for (final alarm in _alarms) {
       if (!alarm.isEnabled) continue;
       final alarmEncoded = alarm.hour * 60 + alarm.minute;
+      final minutesLate = (nowEncoded - alarmEncoded + 1440) % 1440;
+      final alreadyFiredThisSlot =
+          _lastFiredId == alarm.id && _lastFiredMinute == alarmEncoded;
 
-      // Fire if: same minute AND not already fired this minute for this alarm
-      if (alarmEncoded == nowEncoded &&
-          (_lastFiredId != alarm.id || _lastFiredMinute != nowEncoded)) {
+      // Fire if we're at or just past the scheduled minute (tolerates a
+      // missed tick) AND haven't already fired this alarm for this slot.
+      if (minutesLate <= _graceMinutes && !alreadyFiredThisSlot) {
         _lastFiredId = alarm.id;
-        _lastFiredMinute = nowEncoded;
+        _lastFiredMinute = alarmEncoded;
         _fire(alarm);
         break; // Only fire one alarm at a time
       }
