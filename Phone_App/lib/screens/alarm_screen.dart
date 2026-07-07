@@ -109,7 +109,7 @@ class AlarmScreen extends StatelessWidget {
                               onToggle: () =>
                                   alarmProvider.toggleAlarm(alarm.id),
                               onDelete: () =>
-                                  alarmProvider.removeAlarm(alarm.id),
+                                  _deleteAlarm(context, alarmProvider, alarm),
                               onEdit: () =>
                                   _editAlarm(context, alarmProvider, alarm),
                             )),
