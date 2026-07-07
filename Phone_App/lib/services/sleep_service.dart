@@ -24,6 +24,9 @@ class SleepService {
   bool _lightsOn = false;
   DateTime? _lightsOffAt;
   DateTime? _presenceLostAt;
+  // Ensures onAway fires once per absence episode rather than on every
+  // 60s evaluation tick for as long as presence stays absent.
+  bool _awayTriggered = false;
 
   SleepService(this._settings);
 
@@ -57,6 +60,7 @@ class SleepService {
     if (presence && !_currentPresence) {
       // Someone just entered
       _presenceLostAt = null;
+      _awayTriggered = false;
       if (_currentState != SleepState.sleeping) {
         onTurnOnMainLight?.call();
       }
@@ -85,8 +89,9 @@ class SleepService {
     if (_presenceLostAt != null && !_currentPresence) {
       final awayMinutes = now.difference(_presenceLostAt!).inMinutes;
       if (awayMinutes >= _settings.presenceAbsenceMinutes) {
-        if (_currentState != SleepState.sleeping) {
-          // Person left the room — turn off everything
+        if (_currentState != SleepState.sleeping && !_awayTriggered) {
+          // Person left the room — turn off everything (once per episode)
+          _awayTriggered = true;
           onAway?.call();
         }
       }
