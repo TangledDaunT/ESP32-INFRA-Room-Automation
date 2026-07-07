@@ -8,6 +8,8 @@ import 'package:camera/camera.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+import '../models/app_settings.dart';
+
 typedef MotionStatusCallback = void Function(String status);
 typedef MotionDetectedCallback = void Function(Uint8List imageBytes);
 typedef MotionErrorCallback = void Function(String error);
@@ -164,7 +166,7 @@ class MotionDetector {
           final endX = min(startX + blockW, width);
 
           for (int y = startY; y < endY; y++) {
-            final rowStart = y * yPlane.stride + startX;
+            final rowStart = y * yPlane.bytesPerRow + startX;
             int x = startX;
             while (x < endX) {
               final idx = rowStart + (x - startX);
