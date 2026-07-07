@@ -621,9 +621,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 _dirty = true;
                               });
                             },
-                            trailing: _buildTapValue(
-                              _draft.spotifyEnabled ? 'ENABLED' : 'DISABLED',
-                            ),
+                            trailing: ToggleSwitch(value: _draft.spotifyEnabled),
                           ),
                           SettingsRow(
                             label: 'POLLING URL',
