@@ -822,20 +822,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: AppSpace.xxl),
                     GestureDetector(
-                      onTap: _save,
+                      onTap: _dirty ? _save : null,
                       behavior: HitTestBehavior.opaque,
-                      child: Container(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
                         width: double.infinity,
                         height: 48,
                         decoration: BoxDecoration(
-                          border:
-                              Border.all(color: AppColors.white60, width: 1),
+                          color: _dirty ? AppColors.white.withValues(alpha: 0.08) : null,
+                          border: Border.all(
+                            color: _dirty ? AppColors.white90 : AppColors.white20,
+                            width: 1,
+                          ),
+                          boxShadow: _dirty ? GlassDecoration.glow() : null,
                         ),
                         alignment: Alignment.center,
                         child: Text(
-                          'SAVE SETTINGS',
+                          _dirty ? 'SAVE SETTINGS' : 'NO CHANGES',
                           style: AppTextStyles.labelLG(
-                            color: AppColors.white90,
+                            color: _dirty ? AppColors.white90 : AppColors.white40,
                           ),
                         ),
                       ),
@@ -847,6 +852,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
