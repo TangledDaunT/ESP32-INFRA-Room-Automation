@@ -114,7 +114,6 @@ class AlarmProvider extends ChangeNotifier {
   // ── Dismiss ────────────────────────────────────────────────
 
   void dismiss() {
-    _dismissed = true;
     _stopHardware();
     _alarmService.dismiss();
     _activityLog.addSystem('Alarm dismissed', _firingAlarm?.label ?? '');
@@ -126,8 +125,6 @@ class AlarmProvider extends ChangeNotifier {
   // ── Hardware teardown ──────────────────────────────────────
 
   void _stopHardware() {
-    _flashTimer?.cancel();
-    _flashTimer = null;
     // Turn off backup flashlight
     _deviceProvider.setBackupBrightness(0);
     _deviceProvider.setRgbBrightness(0);
