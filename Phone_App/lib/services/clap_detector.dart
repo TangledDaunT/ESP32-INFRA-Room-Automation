@@ -59,7 +59,9 @@ class ClapDetector {
   final int clapWindowMs;
 
   ClapDetector({
-    this.clapDbThreshold = 15.0,
+    // Kept in sync with AppSettings' default (8.0) — a caller that omits
+    // this should behave the same as a fresh install.
+    this.clapDbThreshold = 8.0,
     this.clapWindowMs = 1500,
   });
 
