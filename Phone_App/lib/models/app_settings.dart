@@ -4,7 +4,7 @@ import 'dart:convert';
 class AppSettings {
   static const String currentOpenClawBaseUrl = 'http://192.168.1.15';
   static const String legacyOpenClawBaseUrl = 'http://192.168.1.30';
-  static const String defaultMacAgentBaseUrl = 'http://100.x.x.x:8765';
+  static const String defaultMacAgentBaseUrl = 'http://100.112.98.114:8765';
 
   // ── MQTT ──────────────────────────────────────────────
   String mqttBroker;

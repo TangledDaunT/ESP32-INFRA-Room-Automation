@@ -52,32 +52,43 @@ class MacService {
     required String action,
   }) async {
     final normalizedBase = baseUrl.replaceAll(RegExp(r'/+$'), '');
-    try {
-      final response = await http
-          .post(
-            Uri.parse('$normalizedBase/command'),
-            headers: const {'Content-Type': 'application/json'},
-            body: jsonEncode({'target': target, 'action': action}),
-          )
-          .timeout(const Duration(seconds: 4));
+    final candidateBases = <String>{
+      normalizedBase,
+      if (!normalizedBase.contains('127.0.0.1')) 'http://127.0.0.1:8765',
+      if (!normalizedBase.contains('localhost')) 'http://localhost:8765',
+    };
 
-      final decoded = jsonDecode(response.body);
-      if (decoded is Map<String, dynamic>) {
-        final result = MacCommandResult.fromJson(decoded);
-        if (response.statusCode >= 200 && response.statusCode < 300) {
-          return result;
+    MacCommandResult? lastFailure;
+    for (final base in candidateBases) {
+      try {
+        final response = await http
+            .post(
+              Uri.parse('$base/command'),
+              headers: const {'Content-Type': 'application/json'},
+              body: jsonEncode({'target': target, 'action': action}),
+            )
+            .timeout(const Duration(seconds: 4));
+
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          final result = MacCommandResult.fromJson(decoded);
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            return result;
+          }
+          return MacCommandResult.failure(
+            target,
+            result.reason ?? 'Mac agent rejected the command',
+          );
         }
-        return MacCommandResult.failure(
-          target,
-          result.reason ?? 'Mac agent rejected the command',
-        );
-      }
 
-      return MacCommandResult.failure(target, 'Unexpected Mac agent response');
-    } on TimeoutException {
-      return MacCommandResult.failure(target, 'Mac agent timed out');
-    } catch (error) {
-      return MacCommandResult.failure(target, error.toString());
+        return MacCommandResult.failure(target, 'Unexpected Mac agent response');
+      } on TimeoutException {
+        lastFailure = MacCommandResult.failure(target, 'Mac agent timed out');
+      } catch (error) {
+        lastFailure = MacCommandResult.failure(target, error.toString());
+      }
     }
+
+    return lastFailure ?? MacCommandResult.failure(target, 'Mac agent unreachable');
   }
 }

@@ -2,7 +2,6 @@ import 'dart:async';
 
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -222,7 +221,7 @@ class _IdleScreenState extends State<IdleScreen>
         opacity: _dayOpacity.value,
         child: Text(
           dayText,
-          style: GoogleFonts.nunito(
+          style: const TextStyle(fontFamily: 'Manrope').copyWith(
             fontWeight: FontWeight.w200,
             fontSize: (screenHeight * 0.042).clamp(14.0, 28.0),
             color: Colors.white,
@@ -249,14 +248,14 @@ class _IdleScreenState extends State<IdleScreen>
 
     final baseSize = (screenHeight * 0.052).clamp(16.0, 32.0);
 
-    TextStyle numStyle() => GoogleFonts.nunito(
+    TextStyle numStyle() => const TextStyle(fontFamily: 'Manrope').copyWith(
           fontWeight: FontWeight.w700,
           fontSize: baseSize,
           color: Colors.white.withValues(alpha: 0.88),
           height: 1.0,
         );
 
-    TextStyle monthStyle() => GoogleFonts.nunito(
+    TextStyle monthStyle() => const TextStyle(fontFamily: 'Manrope').copyWith(
           fontWeight: FontWeight.w300,
           fontSize: baseSize,
           color: Colors.white.withValues(alpha: 0.65),
@@ -264,7 +263,7 @@ class _IdleScreenState extends State<IdleScreen>
           height: 1.0,
         );
 
-    TextStyle yearStyle() => GoogleFonts.nunito(
+    TextStyle yearStyle() => const TextStyle(fontFamily: 'Manrope').copyWith(
           fontWeight: FontWeight.w200,
           fontSize: baseSize * 0.80,
           color: Colors.white.withValues(alpha: 0.35),
@@ -277,7 +276,7 @@ class _IdleScreenState extends State<IdleScreen>
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Text(
             '·',
-            style: GoogleFonts.nunito(
+            style: const TextStyle(fontFamily: 'Manrope').copyWith(
               fontSize: baseSize,
               fontWeight: FontWeight.w200,
               color: Colors.white.withValues(alpha: 0.22),
@@ -446,7 +445,7 @@ class _IdleScreenState extends State<IdleScreen>
     // Full day name in uppercase spaced caps.
     final dayText = DateFormat('EEEE').format(_now).toUpperCase();
 
-    final clockStyle = GoogleFonts.nunito(
+    final clockStyle = const TextStyle(fontFamily: 'Manrope').copyWith(
       fontWeight: FontWeight.w900,
       fontSize: clockFontSize,
       color: _blue,
@@ -504,22 +503,21 @@ class _IdleScreenState extends State<IdleScreen>
                   // Device status icons
                   Padding(
                     padding: const EdgeInsets.only(top: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 24,
+                      runSpacing: 12,
                       children: [
                         (Icons.light_outlined, deviceState.lightOn, 'LIGHT'),
                         (Icons.wind_power, deviceState.fanOn, 'FAN'),
                         (Icons.power_outlined, deviceState.socketOn, 'SOCKET'),
                         (Icons.lightbulb_outline, deviceState.rgbOn, 'RGB'),
-                      ].map((d) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Icon(
-                          d.$1,
-                          size: 18,
-                          color: d.$2
-                              ? const Color(0xFF1A6FFF)
-                              : Colors.white.withValues(alpha: 0.18),
-                        ),
+                      ].map((d) => Icon(
+                        d.$1,
+                        size: 18,
+                        color: d.$2
+                            ? const Color(0xFF1A6FFF)
+                            : Colors.white.withValues(alpha: 0.18),
                       )).toList(),
                     ),
                   ),

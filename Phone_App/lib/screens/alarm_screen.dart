@@ -1,6 +1,5 @@
 // lib/screens/alarm_screen.dart
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 import '../models/alarm_model.dart';
@@ -260,7 +259,7 @@ class _AlarmTile extends StatelessWidget {
                     children: [
                       Text(
                         alarm.timeString,
-                        style: GoogleFonts.nunito(
+                        style: const TextStyle(fontFamily: 'Manrope').copyWith(
                           fontSize: 38,
                           fontWeight: FontWeight.w700,
                           color: active

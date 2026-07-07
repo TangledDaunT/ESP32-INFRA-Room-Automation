@@ -1,7 +1,6 @@
 // lib/widgets/alarm_overlay.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/alarm_model.dart';
@@ -156,7 +155,7 @@ class _AlarmOverlayState extends State<AlarmOverlay>
                   // Label
                   Text(
                     label.toUpperCase(),
-                    style: GoogleFonts.nunito(
+                    style: const TextStyle(fontFamily: 'Manrope').copyWith(
                       fontSize: (size.height * 0.038).clamp(12.0, 22.0),
                       fontWeight: FontWeight.w300,
                       color: _red.withValues(alpha: 0.85),
@@ -216,7 +215,7 @@ class _AlarmOverlayState extends State<AlarmOverlay>
   Widget _buildDigit(String text, double fontSize) {
     return Text(
       text,
-      style: GoogleFonts.nunito(
+      style: const TextStyle(fontFamily: 'Manrope').copyWith(
         fontWeight: FontWeight.w900,
         fontSize: fontSize,
         color: Colors.white,
