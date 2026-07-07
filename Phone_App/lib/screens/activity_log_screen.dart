@@ -37,24 +37,28 @@ class ActivityLogScreen extends StatelessWidget {
                             ),
                           ),
                           const Spacer(),
-                          GestureDetector(
-                            onTap: () => log.clear(),
-                            behavior: HitTestBehavior.opaque,
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Symbols.delete,
-                                  size: 16,
-                                  color: AppColors.white40,
-                                  fill: 0,
-                                  weight: 300,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'CLEAR',
-                                  style: AppTextStyles.labelSM(color: AppColors.white40),
-                                ),
-                              ],
+                          Semantics(
+                            button: true,
+                            label: 'Clear activity log',
+                            child: GestureDetector(
+                              onTap: () => _confirmClear(context, log),
+                              behavior: HitTestBehavior.opaque,
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Symbols.delete,
+                                    size: 16,
+                                    color: AppColors.white40,
+                                    fill: 0,
+                                    weight: 300,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'CLEAR',
+                                    style: AppTextStyles.labelSM(color: AppColors.white40),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
