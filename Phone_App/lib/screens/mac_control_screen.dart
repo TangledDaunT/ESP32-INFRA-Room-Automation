@@ -211,15 +211,18 @@ class _MacControlScreenState extends State<MacControlScreen> {
                         itemCount: _targets.length,
                         itemBuilder: (context, index) {
                           final target = _targets[index];
-                          return GlassActionButton(
-                            icon: target.icon,
-                            assetPath: target.assetPath,
-                            label: target.label,
-                            isLoading: _loadingTarget == target.id,
-                            isSuccess: _successTarget == target.id,
-                            isFailure: _failureTarget == target.id,
-                            onTap: () => _activate(target),
-                            onLongPress: () => _close(target),
+                          return StaggeredReveal(
+                            index: index,
+                            child: GlassActionButton(
+                              icon: target.icon,
+                              assetPath: target.assetPath,
+                              label: target.label,
+                              isLoading: _loadingTarget == target.id,
+                              isSuccess: _successTarget == target.id,
+                              isFailure: _failureTarget == target.id,
+                              onTap: () => _activate(target),
+                              onLongPress: () => _close(target),
+                            ),
                           );
                         },
                       ),
