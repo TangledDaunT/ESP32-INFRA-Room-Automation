@@ -183,7 +183,7 @@ class ClapDetector {
     // State for clap validation
     int cooldownFrames = 0; // Prevent rapid triggers
     int consecutiveAboveThreshold = 0; // frames the RMS has stayed elevated
-    double dbThreshold = 15.0; // Default matching AppSettings
+    double dbThreshold = 8.0; // Default matching AppSettings, overwritten on first UpdateSettingsMsg
     double clapMinFreqKhz = 2.0;
     double clapMaxFreqKhz = 8.0;
     int clapMinAttackMs = 1;
