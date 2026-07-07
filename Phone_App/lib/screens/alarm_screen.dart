@@ -151,6 +151,22 @@ class AlarmScreen extends StatelessWidget {
     await provider.addAlarm(alarm);
   }
 
+  Future<void> _deleteAlarm(
+    BuildContext context,
+    AlarmProvider provider,
+    AlarmModel alarm,
+  ) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'DELETE ALARM',
+      message: alarm.label.isEmpty
+          ? 'Delete the ${alarm.timeString} alarm?'
+          : 'Delete "${alarm.label}" (${alarm.timeString})?',
+      confirmLabel: 'DELETE',
+    );
+    if (confirmed) await provider.removeAlarm(alarm.id);
+  }
+
   Future<void> _editAlarm(
     BuildContext context,
     AlarmProvider provider,
@@ -300,28 +316,32 @@ class _AlarmTile extends StatelessWidget {
               ),
             ),
 
-            GestureDetector(
-              onTap: onDelete,
-              behavior: HitTestBehavior.opaque,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-                child: Icon(
-                  Symbols.delete,
-                  size: 18,
-                  color: AppColors.white20,
-                  fill: 0,
-                  weight: 200,
+            Semantics(
+              button: true,
+              label: 'Delete alarm',
+              child: GestureDetector(
+                onTap: onDelete,
+                behavior: HitTestBehavior.opaque,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+                  child: Icon(
+                    Symbols.delete,
+                    size: 18,
+                    color: AppColors.white20,
+                    fill: 0,
+                    weight: 200,
+                  ),
                 ),
               ),
             ),
 
             // ── Toggle switch ───────────────────────────────
-            GestureDetector(
-              onTap: onToggle,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(4, 16, 16, 16),
-                child: _ToggleIndicator(active: active),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 16, 16, 16),
+              child: ToggleSwitch(
+                value: active,
+                onChanged: onToggle,
+                semanticLabel: 'Alarm enabled',
               ),
             ),
           ],
