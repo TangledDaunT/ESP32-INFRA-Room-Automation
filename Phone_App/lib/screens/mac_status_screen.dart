@@ -11,6 +11,7 @@ import '../services/page_activity_controller.dart';
 import '../theme.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/speedometer_dial.dart';
+import '../widgets/staggered_reveal.dart';
 
 /// Dedicated Mac vitals page — CPU / memory / disk gauges, battery, wifi,
 /// host info, and the agent's own tiny resource footprint.
@@ -239,14 +240,46 @@ class _MacStatusScreenState extends State<MacStatusScreen> {
               const SizedBox(width: 10),
               _StatChip(label: 'WIFI', value: status.wifiSsid ?? 'NO LINK'),
               const SizedBox(width: 10),
+              _StatChip(label: 'UPTIME', value: _formatUptime(status.uptimeSeconds)),
+              const SizedBox(width: 10),
               Expanded(
-                child: _StatChip(label: 'INTERFACE', value: status.wifiDevice ?? '--'),
+                child: _StatChip(
+                  label: 'AGENT FOOTPRINT',
+                  value: _formatAgentFootprint(status),
+                ),
               ),
             ],
           ),
         ),
+        if (status.hostname != null || status.macosVersion != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            [
+              if (status.hostname != null) status.hostname!,
+              if (status.macosVersion != null) 'macOS ${status.macosVersion}',
+            ].join('  ·  '),
+            style: AppTextStyles.labelSM(color: AppColors.white30),
+          ),
+        ],
       ],
     );
+  }
+
+  String _formatUptime(double? seconds) {
+    if (seconds == null) return '--';
+    final duration = Duration(seconds: seconds.round());
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    return hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m';
+  }
+
+  String _formatAgentFootprint(MacSystemStatus status) {
+    if (status.agentCpuPercent == null && status.agentMemoryMb == null) {
+      return '--';
+    }
+    final cpu = status.agentCpuPercent?.toStringAsFixed(1) ?? '--';
+    final mem = status.agentMemoryMb?.round().toString() ?? '--';
+    return '$cpu% CPU · ${mem}MB';
   }
 }
 
