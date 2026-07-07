@@ -82,6 +82,7 @@ class WakeupService {
     _rampStarted = true;
     _rampTimer?.cancel();
 
+    onRampStarted?.call();
     onRgbOn?.call();
     onRgbBrightness?.call(0);
 
