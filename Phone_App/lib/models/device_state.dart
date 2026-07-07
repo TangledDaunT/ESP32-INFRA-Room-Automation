@@ -23,6 +23,10 @@ class DeviceState {
   SleepState sleepState;
   bool musicMode;
   bool isNightMode;
+  bool motionDetectActive;
+  DateTime? lastMotionDetected;
+  int motionEventCount;
+  String? motionStatus;
 
   // ── Connection Status ─────────────────────────────────
   ConnectionStatus mqttStatus;
@@ -49,6 +53,10 @@ class DeviceState {
     this.sleepState = SleepState.awake,
     this.musicMode = false,
     this.isNightMode = false,
+    this.motionDetectActive = false,
+    this.lastMotionDetected,
+    this.motionEventCount = 0,
+    this.motionStatus = 'IDLE',
     this.mqttStatus = ConnectionStatus.disconnected,
     this.bleStatus = ConnectionStatus.disconnected,
     this.openclawStatus = ConnectionStatus.disconnected,
