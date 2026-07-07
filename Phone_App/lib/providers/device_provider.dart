@@ -2,6 +2,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart'
+    show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 
 import '../models/app_settings.dart';
 import '../models/device_state.dart';
@@ -14,7 +16,7 @@ import '../services/spotify_service.dart';
 import '../models/spotify_track.dart';
 import '../services/wakeup_service.dart';
 
-class DeviceProvider extends ChangeNotifier {
+class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
   late final OpenClawService _openclaw;
   late final ClapDetector _clap;
   late final SleepService _sleep;
@@ -114,6 +116,8 @@ class DeviceProvider extends ChangeNotifier {
   }
 
   Future<void> _init() async {
+    WidgetsBinding.instance.addObserver(this);
+
     // Connect WebSocket
     _openclaw.connect();
 
@@ -130,6 +134,18 @@ class DeviceProvider extends ChangeNotifier {
 
     // Start Spotify polling
     _spotify.start();
+  }
+
+  // Pause network polling that has no value while the app isn't on screen
+  // (e.g. device locked/backgrounded); resume it once foregrounded again.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _spotify.start();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _spotify.stop();
+    }
   }
 
   // ── Device Control ────────────────────────────────────
@@ -441,6 +457,7 @@ class DeviceProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _openclaw.dispose();
     _clap.dispose();
     _sleep.dispose();

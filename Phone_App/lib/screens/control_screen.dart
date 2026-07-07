@@ -1,12 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
 import '../models/device_state.dart';
 import '../providers/device_provider.dart';
-import '../providers/settings_provider.dart';
+import '../services/page_activity_controller.dart';
 import '../theme.dart';
 import '../widgets/brightness_slider.dart';
 import '../widgets/device_button.dart';
@@ -55,36 +53,14 @@ Color _smokeColor(double ppm) {
   return const Color(0xFFFF4444);
 }
 
-class _ControlScreenState extends State<ControlScreen>
-    with SingleTickerProviderStateMixin {
-  Timer? _idleTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _resetIdleTimer());
-  }
-
-  @override
-  void dispose() {
-    _idleTimer?.cancel();
-    super.dispose();
-  }
-
-  void _resetIdleTimer() {
-    _idleTimer?.cancel();
-    final timeoutSeconds =
-        context.read<SettingsProvider>().settings.idleTimeoutSeconds;
-    _idleTimer = Timer(Duration(seconds: timeoutSeconds), () {
-      if (!mounted) return;
-      Navigator.of(context).popUntil((route) => route.isFirst);
-    });
-  }
+class _ControlScreenState extends State<ControlScreen> {
+  void _pingActivity() => context.read<PageActivityController>().pingActivity();
 
   Future<void> _openSettings() async {
-    _idleTimer?.cancel();
+    final activity = context.read<PageActivityController>();
+    activity.pause();
     await Navigator.of(context).pushNamed('/settings');
-    if (mounted) _resetIdleTimer();
+    if (mounted) activity.resume();
   }
 
   @override
@@ -98,10 +74,10 @@ class _ControlScreenState extends State<ControlScreen>
     return Scaffold(
       backgroundColor: AppColors.black,
       body: GestureDetector(
-        onTapDown: (_) => _resetIdleTimer(),
-        onPanDown: (_) => _resetIdleTimer(),
+        onTapDown: (_) => _pingActivity(),
+        onPanDown: (_) => _pingActivity(),
         onDoubleTap: () {
-          _resetIdleTimer();
+          _pingActivity();
           device.simulateDoubleClap();
         },
         behavior: HitTestBehavior.translucent,
@@ -136,7 +112,7 @@ class _ControlScreenState extends State<ControlScreen>
                   icon: Symbols.light_group,
                   value: state.rgbBrightness.toDouble(),
                   onChanged: (v) {
-                    _resetIdleTimer();
+                    _pingActivity();
                     device.setRgbBrightness(v.round());
                   },
                 ),
@@ -210,7 +186,7 @@ class _ControlScreenState extends State<ControlScreen>
                                       isOn: state.fanOn,
                                       semanticLabel: 'Fan',
                                       onTap: () {
-                                        _resetIdleTimer();
+                                        _pingActivity();
                                         device.setFan(!state.fanOn);
                                       },
                                     ),
@@ -224,7 +200,7 @@ class _ControlScreenState extends State<ControlScreen>
                                       isOn: state.lightOn,
                                       semanticLabel: 'Light',
                                       onTap: () {
-                                        _resetIdleTimer();
+                                        _pingActivity();
                                         device.setLight(!state.lightOn);
                                       },
                                     ),
@@ -244,7 +220,7 @@ class _ControlScreenState extends State<ControlScreen>
                                       isOn: state.socketOn,
                                       semanticLabel: 'Socket',
                                       onTap: () {
-                                        _resetIdleTimer();
+                                        _pingActivity();
                                         device.setSocket(!state.socketOn);
                                       },
                                     ),
@@ -258,7 +234,7 @@ class _ControlScreenState extends State<ControlScreen>
                                       isOn: state.rgbOn,
                                       semanticLabel: 'RGB',
                                       onTap: () {
-                                        _resetIdleTimer();
+                                        _pingActivity();
                                         device.setRgb(!state.rgbOn);
                                       },
                                     ),
@@ -281,20 +257,28 @@ class _ControlScreenState extends State<ControlScreen>
                                 icon: Symbols.alarm,
                                 label: 'ALARMS',
                                 onTap: () {
-                                  _idleTimer?.cancel();
+                                  final activity =
+                                      context.read<PageActivityController>();
+                                  activity.pause();
                                   Navigator.of(context)
                                       .pushNamed('/alarms')
-                                      .then((_) => _resetIdleTimer());
+                                      .then((_) {
+                                    if (mounted) activity.resume();
+                                  });
                                 },
                               ),
                               _BottomActionButton(
                                 icon: Symbols.history,
                                 label: 'LOGS',
                                 onTap: () {
-                                  _idleTimer?.cancel();
+                                  final activity =
+                                      context.read<PageActivityController>();
+                                  activity.pause();
                                   Navigator.of(context)
                                       .pushNamed('/activity')
-                                      .then((_) => _resetIdleTimer());
+                                      .then((_) {
+                                    if (mounted) activity.resume();
+                                  });
                                 },
                               ),
                             ],
@@ -316,7 +300,7 @@ class _ControlScreenState extends State<ControlScreen>
                   icon: Symbols.flashlight_on,
                   value: state.backupBrightness.toDouble(),
                   onChanged: (v) {
-                    _resetIdleTimer();
+                    _pingActivity();
                     device.setBackupBrightness(v.round());
                   },
                 ),

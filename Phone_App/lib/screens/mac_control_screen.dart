@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -7,7 +6,9 @@ import 'package:provider/provider.dart';
 
 import '../providers/settings_provider.dart';
 import '../services/mac_service.dart';
+import '../services/page_activity_controller.dart';
 import '../theme.dart';
+import '../widgets/glass_action_button.dart';
 
 class MacControlScreen extends StatefulWidget {
   const MacControlScreen({super.key});
@@ -51,36 +52,15 @@ class _MacControlScreenState extends State<MacControlScreen> {
     _MacTarget('openclaw', 'OpenClaw', Symbols.smart_toy),
   ];
 
-  Timer? _idleTimer;
   String? _loadingTarget;
   String? _successTarget;
   String? _failureTarget;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _resetIdleTimer());
-  }
-
-  @override
-  void dispose() {
-    _idleTimer?.cancel();
-    super.dispose();
-  }
-
-  void _resetIdleTimer() {
-    _idleTimer?.cancel();
-    final timeoutSeconds =
-        context.read<SettingsProvider>().settings.idleTimeoutSeconds;
-    _idleTimer = Timer(Duration(seconds: timeoutSeconds), () {
-      if (!mounted) return;
-      Navigator.of(context).popUntil((route) => route.isFirst);
-    });
-  }
+  void _pingActivity() => context.read<PageActivityController>().pingActivity();
 
   Future<void> _activate(_MacTarget target) async {
     if (_loadingTarget != null) return;
-    _resetIdleTimer();
+    _pingActivity();
 
     setState(() {
       _loadingTarget = target.id;
@@ -118,7 +98,7 @@ class _MacControlScreenState extends State<MacControlScreen> {
 
   Future<void> _close(_MacTarget target) async {
     if (_loadingTarget != null) return;
-    _resetIdleTimer();
+    _pingActivity();
 
     setState(() {
       _loadingTarget = target.id;
@@ -154,6 +134,13 @@ class _MacControlScreenState extends State<MacControlScreen> {
     }
   }
 
+  Future<void> _openSettings() async {
+    final activity = context.read<PageActivityController>();
+    activity.pause();
+    await Navigator.of(context).pushNamed('/settings');
+    if (mounted) activity.resume();
+  }
+
   @override
   Widget build(BuildContext context) {
     final macAgentUrl =
@@ -162,8 +149,8 @@ class _MacControlScreenState extends State<MacControlScreen> {
     return Scaffold(
       backgroundColor: AppColors.black,
       body: GestureDetector(
-        onTapDown: (_) => _resetIdleTimer(),
-        onPanDown: (_) => _resetIdleTimer(),
+        onTapDown: (_) => _pingActivity(),
+        onPanDown: (_) => _pingActivity(),
         behavior: HitTestBehavior.translucent,
         child: Stack(
           children: [
@@ -200,10 +187,7 @@ class _MacControlScreenState extends State<MacControlScreen> {
                         _HeaderIconButton(
                           tooltip: 'MAC settings',
                           icon: Symbols.settings,
-                          onTap: () {
-                            _resetIdleTimer();
-                            Navigator.of(context).pushNamed('/settings');
-                          },
+                          onTap: _openSettings,
                         ),
                       ],
                     ),
@@ -226,8 +210,10 @@ class _MacControlScreenState extends State<MacControlScreen> {
                         itemCount: _targets.length,
                         itemBuilder: (context, index) {
                           final target = _targets[index];
-                          return _MacGlassButton(
-                            target: target,
+                          return GlassActionButton(
+                            icon: target.icon,
+                            assetPath: target.assetPath,
+                            label: target.label,
                             isLoading: _loadingTarget == target.id,
                             isSuccess: _successTarget == target.id,
                             isFailure: _failureTarget == target.id,
@@ -242,152 +228,6 @@ class _MacControlScreenState extends State<MacControlScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MacGlassButton extends StatefulWidget {
-  const _MacGlassButton({
-    required this.target,
-    required this.isLoading,
-    required this.isSuccess,
-    required this.isFailure,
-    required this.onTap,
-    required this.onLongPress,
-  });
-
-  final _MacTarget target;
-  final bool isLoading;
-  final bool isSuccess;
-  final bool isFailure;
-  final VoidCallback onTap;
-  final VoidCallback onLongPress;
-
-  @override
-  State<_MacGlassButton> createState() => _MacGlassButtonState();
-}
-
-class _MacGlassButtonState extends State<_MacGlassButton> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final active = _pressed || widget.isLoading || widget.isSuccess;
-    final failed = widget.isFailure;
-    final glowColor = failed
-        ? const Color(0xFFFF6B6B)
-        : widget.isSuccess
-            ? const Color(0xFF62F5C7)
-            : AppColors.white;
-
-    return Semantics(
-      button: true,
-      label: widget.target.label,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        onLongPress: widget.onLongPress,
-        onTapDown: (_) => setState(() => _pressed = true),
-        onTapCancel: () => setState(() => _pressed = false),
-        onTapUp: (_) => setState(() => _pressed = false),
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedScale(
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutBack,
-          scale: _pressed ? 1.035 : 1,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: glowColor.withValues(
-                      alpha: active || failed ? 0.18 : 0.06),
-                  blurRadius: active || failed ? 34 : 18,
-                  spreadRadius: active || failed ? 2 : 0,
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(28),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(28),
-                    color: AppColors.white.withValues(
-                      alpha: active ? 0.15 : 0.08,
-                    ),
-                    border: Border.all(
-                      color: glowColor.withValues(
-                        alpha: active || failed ? 0.55 : 0.18,
-                      ),
-                      width: 0.8,
-                    ),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppColors.white.withValues(alpha: active ? 0.22 : 0.13),
-                        AppColors.white.withValues(alpha: 0.035),
-                        glowColor.withValues(alpha: active ? 0.11 : 0.04),
-                      ],
-                      stops: const [0, 0.55, 1],
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.white.withValues(alpha: 0.08),
-                          border: Border.all(
-                            color: AppColors.white.withValues(alpha: 0.18),
-                            width: 0.7,
-                          ),
-                        ),
-                        child: Center(
-                          child: widget.isLoading
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 1.6,
-                                    color: AppColors.white90,
-                                  ),
-                                )
-                              : _MacTargetIcon(
-                                  target: widget.target,
-                                  isSuccess: widget.isSuccess,
-                                  isFailure: failed,
-                                  active: active,
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          widget.target.label.toUpperCase(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.labelLG(
-                            color: AppColors.white90,
-                          ).copyWith(letterSpacing: 2.4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
         ),
       ),
     );
@@ -432,54 +272,6 @@ class _HeaderIconButton extends StatelessWidget {
               opticalSize: 24,
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MacTargetIcon extends StatelessWidget {
-  const _MacTargetIcon({
-    required this.target,
-    required this.isSuccess,
-    required this.isFailure,
-    required this.active,
-  });
-
-  final _MacTarget target;
-  final bool isSuccess;
-  final bool isFailure;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isSuccess || isFailure || target.assetPath == null) {
-      return Icon(
-        isSuccess
-            ? Symbols.check
-            : isFailure
-                ? Symbols.close
-                : target.icon,
-        size: 28,
-        color: isFailure ? const Color(0xFFFF9D9D) : AppColors.white90,
-        fill: active ? 1 : 0,
-        weight: active ? 450 : 300,
-      );
-    }
-
-    return ClipOval(
-      child: Image.asset(
-        target.assetPath!,
-        width: 34,
-        height: 34,
-        fit: BoxFit.cover,
-        filterQuality: FilterQuality.high,
-        errorBuilder: (_, __, ___) => Icon(
-          target.icon,
-          size: 28,
-          color: AppColors.white90,
-          fill: active ? 1 : 0,
-          weight: active ? 450 : 300,
         ),
       ),
     );

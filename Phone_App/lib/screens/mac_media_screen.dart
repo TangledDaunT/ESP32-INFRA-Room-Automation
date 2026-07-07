@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../models/mac_agent_models.dart';
 import '../providers/settings_provider.dart';
 import '../services/mac_service.dart';
+import '../services/page_activity_controller.dart';
 import '../theme.dart';
 import '../widgets/glass_container.dart';
 
@@ -31,21 +32,42 @@ class _MacMediaScreenState extends State<MacMediaScreen> {
   double _volume = 50;
   String? _selectedDeviceId;
 
+  PageActivityController? _activity;
+  bool _everVisible = false;
+
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _refresh();
-      _pollTimer = Timer.periodic(const Duration(seconds: 20), (_) {
-        _refresh(silent: true);
-      });
-    });
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final activity = context.read<PageActivityController>();
+    if (!identical(_activity, activity)) {
+      _activity?.removeListener(_handleVisibilityChange);
+      _activity = activity;
+      _activity!.addListener(_handleVisibilityChange);
+      _handleVisibilityChange();
+    }
   }
 
   @override
   void dispose() {
+    _activity?.removeListener(_handleVisibilityChange);
     _pollTimer?.cancel();
     super.dispose();
+  }
+
+  // Poll only while this exact page is the one visible in the swipeable
+  // deck (and the app is foregrounded) — see PageActivityController.
+  void _handleVisibilityChange() {
+    final visible = _activity?.isVisible(ControlPageIndex.macHub) ?? false;
+    if (visible) {
+      _pollTimer ??= Timer.periodic(const Duration(seconds: 20), (_) {
+        _refresh(silent: true);
+      });
+      _refresh(silent: _everVisible);
+      _everVisible = true;
+    } else {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+    }
   }
 
   Future<void> _refresh({bool silent = false}) async {
