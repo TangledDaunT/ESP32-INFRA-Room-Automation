@@ -198,7 +198,7 @@ class _PickerShell extends StatelessWidget {
   }
 }
 
-class _PickerColumn extends StatelessWidget {
+class _PickerColumn extends StatefulWidget {
   const _PickerColumn({
     required this.initialItem,
     required this.count,
@@ -212,19 +212,38 @@ class _PickerColumn extends StatelessWidget {
   final ValueChanged<int> onSelectedItemChanged;
 
   @override
+  State<_PickerColumn> createState() => _PickerColumnState();
+}
+
+class _PickerColumnState extends State<_PickerColumn> {
+  // Created once and reused for the life of this column — the previous
+  // implementation built a new FixedExtentScrollController on every scroll
+  // detent (every setState the parent picker triggered) and never disposed
+  // the discarded ones, leaking a controller per tick of every time/number
+  // picker interaction across Settings and Alarms.
+  late final FixedExtentScrollController _controller =
+      FixedExtentScrollController(initialItem: widget.initialItem);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListWheelScrollView.useDelegate(
-      controller: FixedExtentScrollController(initialItem: initialItem),
+      controller: _controller,
       itemExtent: 54,
       physics: const FixedExtentScrollPhysics(),
-      onSelectedItemChanged: onSelectedItemChanged,
+      onSelectedItemChanged: widget.onSelectedItemChanged,
       perspective: 0.003,
       childDelegate: ListWheelChildBuilderDelegate(
-        childCount: count,
+        childCount: widget.count,
         builder: (context, index) {
           return Center(
             child: Text(
-              builder(index),
+              widget.builder(index),
               style: AppTextStyles.displayLG(color: AppColors.white90),
             ),
           );
