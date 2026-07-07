@@ -60,11 +60,13 @@ class _MotionFeedScreenState extends State<MotionFeedScreen> {
   Widget build(BuildContext context) {
     final device = context.watch<DeviceProvider>();
     return PopScope(
-      canPop: true,
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         await device.stopMotionDetection();
-        if (mounted) Navigator.of(context).pop();
+        if (context.mounted) {
+          Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
         backgroundColor: AppColors.black,
