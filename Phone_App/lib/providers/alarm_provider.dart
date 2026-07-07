@@ -155,9 +155,8 @@ class AlarmProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    if (identical(_alarmService.onAlarmFired, _onAlarmFired)) {
-      _alarmService.onAlarmFired = null;
-    }
+    // Avoid a stale callback firing into this disposed ChangeNotifier.
+    _alarmService.onAlarmFired = null;
     super.dispose();
   }
 }
