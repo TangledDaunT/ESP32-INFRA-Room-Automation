@@ -35,6 +35,8 @@ class MotionDetector {
 
   bool get isActive => _isActive;
 
+  CameraController? get cameraController => _controller;
+
   MotionDetector({
     required AppSettings settings,
     this.onStatusChanged,

@@ -29,7 +29,7 @@ class _MotionFeedScreenState extends State<MotionFeedScreen> {
     await device.startMotionDetection();
     if (!mounted) return;
 
-    final controller = device.motionDetector._controller;
+    final controller = device.motionDetector.cameraController;
     if (controller == null || !controller.value.isInitialized) {
       if (mounted) {
         setState(() {
