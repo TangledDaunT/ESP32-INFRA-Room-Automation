@@ -141,6 +141,11 @@ class AppSettings {
     this.fridayHookToken = '',
     this.laptopAlarmSync = true,
     this.spotifyEnabled = true,
+    this.motionDetectEnabled = false,
+    this.motionDetectUserKey = '',
+    this.motionDetectApiToken = '',
+    this.motionSensitivity = 15.0,
+    this.motionDebounceMs = 30000,
   });
 
   Map<String, dynamic> toJson() => {

@@ -35,6 +35,11 @@ class SystemStatus:
     memory_percent: float
     disk_percent: float
     timestamp: float
+    hostname: str
+    macos_version: str | None
+    uptime_seconds: float
+    agent_cpu_percent: float
+    agent_memory_mb: float
 
 
 @dataclass(frozen=True)
