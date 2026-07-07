@@ -18,11 +18,36 @@ class MacControlScreen extends StatefulWidget {
 
 class _MacControlScreenState extends State<MacControlScreen> {
   static const _targets = [
-    _MacTarget('vscode', 'VS Code', Symbols.code_blocks),
-    _MacTarget('claude', 'Claude', Symbols.psychology),
-    _MacTarget('codex', 'Codex', Symbols.terminal),
-    _MacTarget('chrome', 'Chrome', Symbols.public),
-    _MacTarget('whatsapp', 'WhatsApp', Symbols.chat),
+    _MacTarget(
+      'vscode',
+      'VS Code',
+      Symbols.code_blocks,
+      assetPath: 'icons/visual-studio-code-icon.webp',
+    ),
+    _MacTarget(
+      'claude',
+      'Claude',
+      Symbols.psychology,
+      assetPath: 'icons/claude-ai.jpg',
+    ),
+    _MacTarget(
+      'codex',
+      'Codex',
+      Symbols.terminal,
+      assetPath: 'icons/codex.png',
+    ),
+    _MacTarget(
+      'chrome',
+      'Chrome',
+      Symbols.public,
+      assetPath: 'icons/152759.png',
+    ),
+    _MacTarget(
+      'whatsapp',
+      'WhatsApp',
+      Symbols.chat,
+      assetPath: 'icons/images.jpeg',
+    ),
     _MacTarget('openclaw', 'OpenClaw', Symbols.smart_toy),
   ];
 
@@ -133,6 +158,15 @@ class _MacControlScreenState extends State<MacControlScreen> {
                           style: AppTextStyles.labelSM(
                             color: AppColors.white30,
                           ),
+                        ),
+                        const SizedBox(width: 14),
+                        _HeaderIconButton(
+                          tooltip: 'MAC settings',
+                          icon: Symbols.settings,
+                          onTap: () {
+                            _resetIdleTimer();
+                            Navigator.of(context).pushNamed('/settings');
+                          },
                         ),
                       ],
                     ),
@@ -283,18 +317,11 @@ class _MacGlassButtonState extends State<_MacGlassButton> {
                                     color: AppColors.white90,
                                   ),
                                 )
-                              : Icon(
-                                  widget.isSuccess
-                                      ? Symbols.check
-                                      : failed
-                                          ? Symbols.close
-                                          : widget.target.icon,
-                                  size: 28,
-                                  color: failed
-                                      ? const Color(0xFFFF9D9D)
-                                      : AppColors.white90,
-                                  fill: active ? 1 : 0,
-                                  weight: active ? 450 : 300,
+                              : _MacTargetIcon(
+                                  target: widget.target,
+                                  isSuccess: widget.isSuccess,
+                                  isFailure: failed,
+                                  active: active,
                                 ),
                         ),
                       ),
@@ -315,6 +342,98 @@ class _MacGlassButtonState extends State<_MacGlassButton> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox.square(
+          dimension: 36,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.white.withValues(alpha: 0.08),
+              border: Border.all(
+                color: AppColors.white.withValues(alpha: 0.18),
+                width: 0.7,
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: AppColors.white60,
+              fill: 0,
+              weight: 300,
+              opticalSize: 24,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MacTargetIcon extends StatelessWidget {
+  const _MacTargetIcon({
+    required this.target,
+    required this.isSuccess,
+    required this.isFailure,
+    required this.active,
+  });
+
+  final _MacTarget target;
+  final bool isSuccess;
+  final bool isFailure;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isSuccess || isFailure || target.assetPath == null) {
+      return Icon(
+        isSuccess
+            ? Symbols.check
+            : isFailure
+                ? Symbols.close
+                : target.icon,
+        size: 28,
+        color: isFailure ? const Color(0xFFFF9D9D) : AppColors.white90,
+        fill: active ? 1 : 0,
+        weight: active ? 450 : 300,
+      );
+    }
+
+    return ClipOval(
+      child: Image.asset(
+        target.assetPath!,
+        width: 34,
+        height: 34,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (_, __, ___) => Icon(
+          target.icon,
+          size: 28,
+          color: AppColors.white90,
+          fill: active ? 1 : 0,
+          weight: active ? 450 : 300,
         ),
       ),
     );
@@ -362,9 +481,15 @@ class _LiquidBackdrop extends StatelessWidget {
 }
 
 class _MacTarget {
-  const _MacTarget(this.id, this.label, this.icon);
+  const _MacTarget(
+    this.id,
+    this.label,
+    this.icon, {
+    this.assetPath,
+  });
 
   final String id;
   final String label;
   final IconData icon;
+  final String? assetPath;
 }

@@ -79,7 +79,8 @@ class DeviceProvider extends ChangeNotifier {
       _updateState(_state.copyWith(openclawStatus: ConnectionStatus.connected));
     };
     _openclaw.onDisconnected = () {
-      _updateState(_state.copyWith(openclawStatus: ConnectionStatus.disconnected));
+      _updateState(
+          _state.copyWith(openclawStatus: ConnectionStatus.disconnected));
     };
 
     // ── Clap detection ────────────────────────────────
@@ -124,8 +125,10 @@ class DeviceProvider extends ChangeNotifier {
     // Connect WebSocket
     _openclaw.connect();
 
-    // Start clap detection (always on)
-    await _clap.start();
+    // Start clap detection on platforms that support isolates and mic capture.
+    if (!kIsWeb) {
+      await _clap.start();
+    }
 
     // Start sleep service
     _sleep.start();
@@ -225,9 +228,9 @@ class DeviceProvider extends ChangeNotifier {
     if (data.containsKey('relays') && data['relays'] is List) {
       final relays = data['relays'] as List;
       if (relays.length >= 4) {
-        normalised['light']  = relays[0] == true;
-        normalised['fan']    = relays[1] == true;
-        normalised['rgb']    = relays[2] == true;
+        normalised['light'] = relays[0] == true;
+        normalised['fan'] = relays[1] == true;
+        normalised['rgb'] = relays[2] == true;
         normalised['socket'] = relays[3] == true;
       }
     }
@@ -242,7 +245,7 @@ class DeviceProvider extends ChangeNotifier {
       normalised['presence'] = data['present'];
     }
     if (data.containsKey('smoke')) normalised['smoke'] = data['smoke'];
-    if (data.containsKey('lux'))   normalised['lux']   = data['lux'];
+    if (data.containsKey('lux')) normalised['lux'] = data['lux'];
 
     _parseFullState(normalised);
   }
@@ -270,10 +273,15 @@ class DeviceProvider extends ChangeNotifier {
     if (presenceDetected != previousPresence) {
       _activityLog.addSensor(
         'Presence ${presenceDetected ? 'detected' : 'lost'}',
-        presenceDetected ? 'ESP32 radar reports room occupied' : 'ESP32 radar reports room empty',
+        presenceDetected
+            ? 'ESP32 radar reports room occupied'
+            : 'ESP32 radar reports room empty',
       );
-      if (presenceDetected && _settings.presenceAutoRestoreLight && !_state.lightOn) {
-        _activityLog.addAutomation('Presence restore light', 'Turning light on because presence returned');
+      if (presenceDetected &&
+          _settings.presenceAutoRestoreLight &&
+          !_state.lightOn) {
+        _activityLog.addAutomation('Presence restore light',
+            'Turning light on because presence returned');
         setLight(true);
       }
     }
@@ -345,7 +353,8 @@ class DeviceProvider extends ChangeNotifier {
     _rampTimer?.cancel();
     _rampTimer = Timer.periodic(stepDuration, (timer) {
       step++;
-      final newBrightness = (startBrightness * (1 - step / steps)).round().clamp(0, 255);
+      final newBrightness =
+          (startBrightness * (1 - step / steps)).round().clamp(0, 255);
       setRgbBrightnessFast(newBrightness);
 
       if (step >= steps) {
@@ -385,7 +394,8 @@ class DeviceProvider extends ChangeNotifier {
       setRgbBrightnessFast(brightness);
       if (step >= steps) {
         t.cancel();
-        _updateState(_state.copyWith(rgbBrightness: brightness)); // trigger UI update at end
+        _updateState(_state.copyWith(
+            rgbBrightness: brightness)); // trigger UI update at end
         onComplete?.call();
       }
     });
@@ -442,7 +452,8 @@ class DeviceProvider extends ChangeNotifier {
 
   /// Activate sleep mode: turn off lights, dim laptop, set alarm for 5:30 hours
   Future<void> activateSleepMode() async {
-    _activityLog.addAutomation('Sleep mode activated', 'Turning off devices and setting wakeup alarm');
+    _activityLog.addAutomation(
+        'Sleep mode activated', 'Turning off devices and setting wakeup alarm');
 
     // 1. Turn off RGB and backup light with fade
     await _turnOffRgbAndBackupWithFade();
@@ -477,15 +488,16 @@ class DeviceProvider extends ChangeNotifier {
     _rampTimer?.cancel();
     _rampTimer = Timer.periodic(stepDuration, (timer) {
       step++;
-      
+
       // Fade RGB
       final newRgb = (startRgb * (1 - step / steps)).round().clamp(0, 255);
       if (_state.rgbBrightness != newRgb) {
         setRgbBrightnessFast(newRgb);
       }
-      
+
       // Fade backup
-      final newBackup = (startBackup * (1 - step / steps)).round().clamp(0, 255);
+      final newBackup =
+          (startBackup * (1 - step / steps)).round().clamp(0, 255);
       if (_state.backupBrightness != newBackup) {
         _state = _state.copyWith(backupBrightness: newBackup);
         _openclaw.setFlashBrightness(newBackup);
@@ -521,7 +533,7 @@ class DeviceProvider extends ChangeNotifier {
     );
 
     await _alarmService!.addAlarm(alarm);
-    _activityLog.addAlarm('Sleep alarm scheduled', 
+    _activityLog.addAlarm('Sleep alarm scheduled',
         'Wakeup at ${alarm.timeString} (${_settings.sleepAlarmHours}h ${_settings.sleepAlarmMinutes}m from now)');
 
     // Notify laptop about alarm
@@ -536,26 +548,31 @@ class DeviceProvider extends ChangeNotifier {
 
     try {
       final url = '${_settings.fridayBaseUrl}/api/sleep';
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${_settings.fridayHookToken}',
-        },
-        body: jsonEncode({
-          'brightness': brightness,
-          'action': 'sleep',
-          'timestamp': DateTime.now().toIso8601String(),
-        }),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${_settings.fridayHookToken}',
+            },
+            body: jsonEncode({
+              'brightness': brightness,
+              'action': 'sleep',
+              'timestamp': DateTime.now().toIso8601String(),
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
-        _activityLog.addSystem('Laptop brightness set', 'Brightness = $brightness');
+        _activityLog.addSystem(
+            'Laptop brightness set', 'Brightness = $brightness');
       } else {
-        _activityLog.addSystem('Laptop brightness failed', 'Status: ${response.statusCode}');
+        _activityLog.addSystem(
+            'Laptop brightness failed', 'Status: ${response.statusCode}');
       }
     } on TimeoutException {
-      _activityLog.addSystem('Laptop brightness timeout', 'Laptop may be offline');
+      _activityLog.addSystem(
+          'Laptop brightness timeout', 'Laptop may be offline');
     } catch (e) {
       _activityLog.addSystem('Laptop brightness error', e.toString());
     }
@@ -565,20 +582,22 @@ class DeviceProvider extends ChangeNotifier {
   Future<void> _notifyLaptopAlarmScheduled(AlarmModel alarm) async {
     try {
       final url = '${_settings.fridayBaseUrl}/api/alarm/schedule';
-      await http.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${_settings.fridayHookToken}',
-        },
-        body: jsonEncode({
-          'alarm_id': alarm.id,
-          'label': alarm.label,
-          'hour': alarm.hour,
-          'minute': alarm.minute,
-          'timestamp': DateTime.now().toIso8601String(),
-        }),
-      ).timeout(const Duration(seconds: 5));
+      await http
+          .post(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${_settings.fridayHookToken}',
+            },
+            body: jsonEncode({
+              'alarm_id': alarm.id,
+              'label': alarm.label,
+              'hour': alarm.hour,
+              'minute': alarm.minute,
+              'timestamp': DateTime.now().toIso8601String(),
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
     } catch (e) {
       debugPrint('[DeviceProvider] Failed to notify laptop of alarm: $e');
     }
