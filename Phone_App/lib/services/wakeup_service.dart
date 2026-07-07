@@ -13,6 +13,7 @@ class WakeupService {
   VoidCallback? onRgbOn; // Turn on RGB
   VoidCallback? onLightOn; // Turn on main light at wake time
   VoidCallback? onWakeupComplete; // Notify OpenClaw
+  VoidCallback? onRampStarted; // Let SleepService know a ramp is in progress
 
   Timer? _checkTimer;
   Timer? _rampTimer;
@@ -44,6 +45,11 @@ class WakeupService {
     _wakeupFired = false;
   }
 
+  /// Minutes a scheduled event tolerates being late by before giving up —
+  /// covers a single missed `_checkTimer` tick (e.g. under Android Doze)
+  /// without risking firing hours late if the app was genuinely suspended.
+  static const int _graceMinutes = 5;
+
   void _check() {
     final now = DateTime.now();
     final wakeMinutes = _settings.wakeUpHour * 60 + _settings.wakeUpMinute;
@@ -56,15 +62,20 @@ class WakeupService {
       _wakeupFired = false;
     }
 
-    // Start ramp X minutes before wake time
-    if (!_rampStarted && currentMinutes == rampStartMinutes) {
+    // Start ramp X minutes before wake time (tolerates a missed tick)
+    if (!_rampStarted && _withinGrace(currentMinutes, rampStartMinutes)) {
       _startRamp();
     }
 
-    // Fire wake-up at exact time
-    if (!_wakeupFired && currentMinutes == wakeMinutes) {
+    // Fire wake-up at/just after the exact time (tolerates a missed tick)
+    if (!_wakeupFired && _withinGrace(currentMinutes, wakeMinutes)) {
       _fireWakeup();
     }
+  }
+
+  bool _withinGrace(int currentMinutes, int targetMinutes) {
+    final diff = currentMinutes - targetMinutes;
+    return diff >= 0 && diff <= _graceMinutes;
   }
 
   void _startRamp() {
