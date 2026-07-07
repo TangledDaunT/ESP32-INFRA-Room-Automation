@@ -198,6 +198,11 @@ class AppSettings {
         'fridayHookToken': fridayHookToken,
         'laptopAlarmSync': laptopAlarmSync,
         'spotifyEnabled': spotifyEnabled,
+        'motionDetectEnabled': motionDetectEnabled,
+        'motionDetectUserKey': motionDetectUserKey,
+        'motionDetectApiToken': motionDetectApiToken,
+        'motionSensitivity': motionSensitivity,
+        'motionDebounceMs': motionDebounceMs,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
@@ -255,8 +260,13 @@ class AppSettings {
         historySyncUrl: json['historySyncUrl'] ?? '',
         fridayBaseUrl: json['fridayBaseUrl'] ?? 'http://192.168.1.15:41262',
         fridayHookToken: json['fridayHookToken'] ?? '',
-        laptopAlarmSync: json['laptopAlarmSync'] ?? true,
+        laptopAlarmSync: json['laptopAlarmSync'] as bool? ?? true,
         spotifyEnabled: json['spotifyEnabled'] as bool? ?? true,
+        motionDetectEnabled: json['motionDetectEnabled'] as bool? ?? false,
+        motionDetectUserKey: json['motionDetectUserKey'] ?? '',
+        motionDetectApiToken: json['motionDetectApiToken'] ?? '',
+        motionSensitivity: (json['motionSensitivity'] ?? 15.0).toDouble(),
+        motionDebounceMs: json['motionDebounceMs'] ?? 30000,
       );
 
   String toJsonString() => jsonEncode(toJson());
