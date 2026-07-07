@@ -105,14 +105,17 @@ class AlarmScreen extends StatelessWidget {
                         ),
                       ] else ...[
                         // ── Alarm list ───────────────────────
-                        ...alarms.map((alarm) => _AlarmTile(
-                              alarm: alarm,
-                              onToggle: () =>
-                                  alarmProvider.toggleAlarm(alarm.id),
-                              onDelete: () =>
-                                  _deleteAlarm(context, alarmProvider, alarm),
-                              onEdit: () =>
-                                  _editAlarm(context, alarmProvider, alarm),
+                        ...alarms.asMap().entries.map((entry) => StaggeredReveal(
+                              index: entry.key,
+                              child: _AlarmTile(
+                                alarm: entry.value,
+                                onToggle: () =>
+                                    alarmProvider.toggleAlarm(entry.value.id),
+                                onDelete: () => _deleteAlarm(
+                                    context, alarmProvider, entry.value),
+                                onEdit: () => _editAlarm(
+                                    context, alarmProvider, entry.value),
+                              ),
                             )),
                       ],
 
