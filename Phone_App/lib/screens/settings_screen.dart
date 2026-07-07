@@ -642,9 +642,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 _dirty = true;
                               });
                             },
-                            trailing: _buildTapValue(_draft.clapHighPassEnabled
-                                ? 'ENABLED'
-                                : 'DISABLED'),
+                            trailing: ToggleSwitch(value: _draft.clapHighPassEnabled),
                           ),
                           SettingsRow(
                             label: 'CLAP FREQ MIN',
