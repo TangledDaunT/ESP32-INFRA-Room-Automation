@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/activity_log_entry.dart';
 import '../services/activity_log_service.dart';
 import '../theme.dart';
+import '../widgets/confirm_dialog.dart';
 
 class ActivityLogScreen extends StatelessWidget {
   const ActivityLogScreen({super.key});
