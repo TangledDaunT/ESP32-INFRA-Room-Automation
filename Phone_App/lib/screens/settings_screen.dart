@@ -141,9 +141,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _draft.clapDbThreshold = ((value / 100) * 30).clamp(0, 30);
   }
 
+  Future<void> _confirmDiscardAndPop() async {
+    final discard = await showConfirmDialog(
+      context,
+      title: 'DISCARD CHANGES?',
+      message: 'You have unsaved settings changes. Discard them?',
+      confirmLabel: 'DISCARD',
+    );
+    if (discard && mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _confirmDiscardAndPop();
+      },
+      child: Scaffold(
       backgroundColor: AppColors.black,
       body: SafeArea(
         child: CustomScrollView(
