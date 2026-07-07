@@ -4,7 +4,6 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/device_provider.dart';
-import '../services/motion_detector.dart';
 import '../theme.dart';
 
 class MotionFeedScreen extends StatefulWidget {
