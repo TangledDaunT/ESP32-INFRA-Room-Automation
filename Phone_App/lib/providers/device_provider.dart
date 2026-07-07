@@ -1,17 +1,13 @@
 // lib/providers/device_provider.dart
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 
-import '../models/alarm_model.dart';
 import '../models/app_settings.dart';
 import '../models/device_state.dart';
 import '../services/activity_log_service.dart';
 import '../services/alarm_service.dart';
 import '../services/clap_detector.dart';
-import '../services/friday_service.dart';
 import '../services/openclaw_service.dart';
 import '../services/sleep_service.dart';
 import '../services/spotify_service.dart';
