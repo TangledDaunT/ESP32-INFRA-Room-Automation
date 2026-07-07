@@ -25,12 +25,13 @@ TARGETS: dict[str, TargetConfig] = {
 
 class CommandRequest(BaseModel):
     target: str
+    action: Literal["open", "close"] = "open"
 
 
 class CommandResponse(BaseModel):
     success: bool
     target: str
-    action: Literal["focused", "launched"]
+    action: Literal["focused", "launched", "closed"]
     reason: str
 
 
@@ -71,6 +72,14 @@ def _launch(app_name: str) -> tuple[bool, str]:
     return True, "Application launched and focused"
 
 
+def _quit(app_name: str) -> tuple[bool, str]:
+    script = f'tell application "{app_name}" to quit saving no'
+    result = _run(["osascript", "-e", script])
+    if result.returncode == 0:
+        return True, "Application closed"
+    return False, (result.stderr or result.stdout or "Close failed").strip()
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -84,6 +93,25 @@ def command(request: CommandRequest) -> CommandResponse:
         raise HTTPException(
             status_code=400,
             detail=f"Unsupported target: {request.target}",
+        )
+
+    if request.action == "close":
+        if not _is_running(config.app_name):
+            return CommandResponse(
+                success=True,
+                target=target,
+                action="closed",
+                reason="Application already closed",
+            )
+
+        success, reason = _quit(config.app_name)
+        if not success:
+            raise HTTPException(status_code=500, detail=reason)
+        return CommandResponse(
+            success=True,
+            target=target,
+            action="closed",
+            reason=reason,
         )
 
     if _is_running(config.app_name):

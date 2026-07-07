@@ -39,14 +39,25 @@ class MacService {
 
   final String baseUrl;
 
-  Future<MacCommandResult> activate(String target) async {
+  Future<MacCommandResult> open(String target) async {
+    return _send(target: target, action: 'open');
+  }
+
+  Future<MacCommandResult> close(String target) async {
+    return _send(target: target, action: 'close');
+  }
+
+  Future<MacCommandResult> _send({
+    required String target,
+    required String action,
+  }) async {
     final normalizedBase = baseUrl.replaceAll(RegExp(r'/+$'), '');
     try {
       final response = await http
           .post(
             Uri.parse('$normalizedBase/command'),
             headers: const {'Content-Type': 'application/json'},
-            body: jsonEncode({'target': target}),
+            body: jsonEncode({'target': target, 'action': action}),
           )
           .timeout(const Duration(seconds: 4));
 

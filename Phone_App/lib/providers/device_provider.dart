@@ -19,7 +19,6 @@ class DeviceProvider extends ChangeNotifier {
   late final ClapDetector _clap;
   late final SleepService _sleep;
   late final WakeupService _wakeup;
-  late final FridayService _friday;
   late final SpotifyService _spotify;
   final ActivityLogService _activityLog;
   AlarmService? _alarmService;
@@ -38,9 +37,8 @@ class DeviceProvider extends ChangeNotifier {
 
   DeviceProvider(
     this._settings,
-    this._activityLog, {
-    FridayService? fridayService,
-  }) {
+    this._activityLog,
+  ) {
     _openclaw = OpenClawService(_settings);
     _clap = ClapDetector(
       clapDbThreshold: _settings.clapDbThreshold,
@@ -48,7 +46,6 @@ class DeviceProvider extends ChangeNotifier {
     );
     _sleep = SleepService(_settings);
     _wakeup = WakeupService(_settings);
-    _friday = fridayService ?? FridayService(settings: _settings);
     _spotify = SpotifyService(_settings);
 
     _setupCallbacks();
@@ -65,7 +62,6 @@ class DeviceProvider extends ChangeNotifier {
   bool get showClapIndicator => _showClapIndicator;
   bool get clapDetectorHealthy => _clapDetectorHealthy;
   AppSettings get settings => _settings;
-  FridayService get friday => _friday;
   SpotifyTrack? get currentTrack => _spotify.currentTrack;
 
   void _setupCallbacks() {
@@ -427,7 +423,6 @@ class DeviceProvider extends ChangeNotifier {
     _sleep.updateSettings(settings);
     _wakeup.updateSettings(settings);
     _clap.updateSettings(settings.toJson());
-    _friday.updateSettings(settings);
     _spotify.updateSettings(settings);
     _alarmService?.updateSettings(settings);
     await _activityLog.updateSettings(settings);
@@ -444,168 +439,12 @@ class DeviceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Sleep Mode ───────────────────────────────────────
-
-  /// Activate sleep mode: turn off lights, dim laptop, set alarm for 5:30 hours
-  Future<void> activateSleepMode() async {
-    _activityLog.addAutomation(
-        'Sleep mode activated', 'Turning off devices and setting wakeup alarm');
-
-    // 1. Turn off RGB and backup light with fade
-    await _turnOffRgbAndBackupWithFade();
-
-    // 2. Turn off other devices
-    setFan(false);
-    setLight(false);
-    setSocket(false);
-
-    // 3. Schedule alarm for 5:30 hours from now
-    await _scheduleSleepAlarm();
-
-    // 4. Notify laptop to set brightness to 0
-    await _setLaptopBrightness(0);
-
-    _activityLog.addSystem(
-      'Sleep mode complete',
-      'Alarm set for ${_settings.sleepAlarmHours}h ${_settings.sleepAlarmMinutes}m',
-    );
-  }
-
-  /// Fade off RGB and backup light smoothly
-  Future<void> _turnOffRgbAndBackupWithFade() async {
-    final startRgb = _state.rgbBrightness;
-    final startBackup = _state.backupBrightness;
-    const steps = 10;
-    const stepDuration = Duration(milliseconds: 50);
-
-    var step = 0;
-    final completer = Completer<void>();
-
-    _rampTimer?.cancel();
-    _rampTimer = Timer.periodic(stepDuration, (timer) {
-      step++;
-
-      // Fade RGB
-      final newRgb = (startRgb * (1 - step / steps)).round().clamp(0, 255);
-      if (_state.rgbBrightness != newRgb) {
-        setRgbBrightnessFast(newRgb);
-      }
-
-      // Fade backup
-      final newBackup =
-          (startBackup * (1 - step / steps)).round().clamp(0, 255);
-      if (_state.backupBrightness != newBackup) {
-        _state = _state.copyWith(backupBrightness: newBackup);
-        _openclaw.setFlashBrightness(newBackup);
-      }
-
-      if (step >= steps) {
-        timer.cancel();
-        setRgb(false);
-        setBackupBrightness(0);
-        completer.complete();
-      }
-    });
-
-    return completer.future;
-  }
-
-  /// Schedule alarm for wakeup (5:30 hours from now)
-  Future<void> _scheduleSleepAlarm() async {
-    if (_alarmService == null) return;
-
-    final wakeupTime = DateTime.now().add(Duration(
-      hours: _settings.sleepAlarmHours,
-      minutes: _settings.sleepAlarmMinutes,
-    ));
-
-    final alarm = AlarmModel(
-      id: 'sleep_wakeup_${DateTime.now().millisecondsSinceEpoch}',
-      hour: wakeupTime.hour,
-      minute: wakeupTime.minute,
-      label: 'Sleep Wakeup',
-      isEnabled: true,
-      kind: AlarmKind.scheduled,
-    );
-
-    await _alarmService!.addAlarm(alarm);
-    _activityLog.addAlarm('Sleep alarm scheduled',
-        'Wakeup at ${alarm.timeString} (${_settings.sleepAlarmHours}h ${_settings.sleepAlarmMinutes}m from now)');
-
-    // Notify laptop about alarm
-    if (_settings.laptopAlarmSync) {
-      await _notifyLaptopAlarmScheduled(alarm);
-    }
-  }
-
-  /// Set laptop brightness via HTTP API
-  Future<void> _setLaptopBrightness(int brightness) async {
-    if (!_settings.laptopBrightnessControl) return;
-
-    try {
-      final url = '${_settings.fridayBaseUrl}/api/sleep';
-      final response = await http
-          .post(
-            Uri.parse(url),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ${_settings.fridayHookToken}',
-            },
-            body: jsonEncode({
-              'brightness': brightness,
-              'action': 'sleep',
-              'timestamp': DateTime.now().toIso8601String(),
-            }),
-          )
-          .timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        _activityLog.addSystem(
-            'Laptop brightness set', 'Brightness = $brightness');
-      } else {
-        _activityLog.addSystem(
-            'Laptop brightness failed', 'Status: ${response.statusCode}');
-      }
-    } on TimeoutException {
-      _activityLog.addSystem(
-          'Laptop brightness timeout', 'Laptop may be offline');
-    } catch (e) {
-      _activityLog.addSystem('Laptop brightness error', e.toString());
-    }
-  }
-
-  /// Notify laptop about scheduled alarm
-  Future<void> _notifyLaptopAlarmScheduled(AlarmModel alarm) async {
-    try {
-      final url = '${_settings.fridayBaseUrl}/api/alarm/schedule';
-      await http
-          .post(
-            Uri.parse(url),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ${_settings.fridayHookToken}',
-            },
-            body: jsonEncode({
-              'alarm_id': alarm.id,
-              'label': alarm.label,
-              'hour': alarm.hour,
-              'minute': alarm.minute,
-              'timestamp': DateTime.now().toIso8601String(),
-            }),
-          )
-          .timeout(const Duration(seconds: 5));
-    } catch (e) {
-      debugPrint('[DeviceProvider] Failed to notify laptop of alarm: $e');
-    }
-  }
-
   @override
   void dispose() {
     _openclaw.dispose();
     _clap.dispose();
     _sleep.dispose();
     _wakeup.dispose();
-    _friday.dispose();
     _spotify.dispose();
     _rampTimer?.cancel();
     _clapIndicatorTimer?.cancel();

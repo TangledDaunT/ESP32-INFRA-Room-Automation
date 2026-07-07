@@ -72,13 +72,10 @@ class AppSettings {
   bool historySyncEnabled;
   String historySyncUrl;
 
-  // ── Friday Integration ────────────────────────────────
+  // ── Laptop Sync ───────────────────────────────────────
   String fridayBaseUrl; // OpenClaw Gateway URL (e.g. http://192.168.1.15:41262)
   String fridayHookToken; // Authorization Bearer token
-  bool laptopBrightnessControl; // Enable laptop brightness sync
   bool laptopAlarmSync; // Play alarms on laptop too
-  int sleepAlarmHours; // Hours for sleep alarm (default 5)
-  int sleepAlarmMinutes; // Minutes for sleep alarm (default 30)
 
   // ── Spotify ───────────────────────────────────────────
   bool spotifyEnabled;
@@ -132,13 +129,10 @@ class AppSettings {
     this.presenceAutoRestoreLight = true,
     this.historySyncEnabled = false,
     this.historySyncUrl = '',
-    // Friday defaults
+    // Laptop sync defaults
     this.fridayBaseUrl = 'http://192.168.1.15:41262',
     this.fridayHookToken = '',
-    this.laptopBrightnessControl = true,
     this.laptopAlarmSync = true,
-    this.sleepAlarmHours = 5,
-    this.sleepAlarmMinutes = 30,
     this.spotifyEnabled = true,
   });
 
@@ -190,10 +184,7 @@ class AppSettings {
         'historySyncUrl': historySyncUrl,
         'fridayBaseUrl': fridayBaseUrl,
         'fridayHookToken': fridayHookToken,
-        'laptopBrightnessControl': laptopBrightnessControl,
         'laptopAlarmSync': laptopAlarmSync,
-        'sleepAlarmHours': sleepAlarmHours,
-        'sleepAlarmMinutes': sleepAlarmMinutes,
         'spotifyEnabled': spotifyEnabled,
       };
 
@@ -248,10 +239,7 @@ class AppSettings {
         historySyncUrl: json['historySyncUrl'] ?? '',
         fridayBaseUrl: json['fridayBaseUrl'] ?? 'http://192.168.1.15:41262',
         fridayHookToken: json['fridayHookToken'] ?? '',
-        laptopBrightnessControl: json['laptopBrightnessControl'] ?? true,
         laptopAlarmSync: json['laptopAlarmSync'] ?? true,
-        sleepAlarmHours: json['sleepAlarmHours'] ?? 5,
-        sleepAlarmMinutes: json['sleepAlarmMinutes'] ?? 30,
         spotifyEnabled: json['spotifyEnabled'] as bool? ?? true,
       );
 

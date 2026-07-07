@@ -89,8 +89,45 @@ class _MacControlScreenState extends State<MacControlScreen> {
     });
 
     final settings = context.read<SettingsProvider>().settings;
-    final result =
-        await MacService(settings.macAgentBaseUrl).activate(target.id);
+    final result = await MacService(settings.macAgentBaseUrl).open(target.id);
+
+    if (!mounted) return;
+    setState(() {
+      _loadingTarget = null;
+      _successTarget = result.success ? target.id : null;
+      _failureTarget = result.success ? null : target.id;
+    });
+
+    Timer(const Duration(milliseconds: 900), () {
+      if (!mounted) return;
+      setState(() {
+        if (_successTarget == target.id) _successTarget = null;
+        if (_failureTarget == target.id) _failureTarget = null;
+      });
+    });
+
+    if (!result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.reason ?? 'MAC AGENT ERROR'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _close(_MacTarget target) async {
+    if (_loadingTarget != null) return;
+    _resetIdleTimer();
+
+    setState(() {
+      _loadingTarget = target.id;
+      _successTarget = null;
+      _failureTarget = null;
+    });
+
+    final settings = context.read<SettingsProvider>().settings;
+    final result = await MacService(settings.macAgentBaseUrl).close(target.id);
 
     if (!mounted) return;
     setState(() {
@@ -170,6 +207,11 @@ class _MacControlScreenState extends State<MacControlScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Tap to open, long-press to close',
+                      style: AppTextStyles.labelSM(color: AppColors.white30),
+                    ),
                     const SizedBox(height: 18),
                     Expanded(
                       child: GridView.builder(
@@ -190,6 +232,7 @@ class _MacControlScreenState extends State<MacControlScreen> {
                             isSuccess: _successTarget == target.id,
                             isFailure: _failureTarget == target.id,
                             onTap: () => _activate(target),
+                            onLongPress: () => _close(target),
                           );
                         },
                       ),
@@ -212,6 +255,7 @@ class _MacGlassButton extends StatefulWidget {
     required this.isSuccess,
     required this.isFailure,
     required this.onTap,
+    required this.onLongPress,
   });
 
   final _MacTarget target;
@@ -219,6 +263,7 @@ class _MacGlassButton extends StatefulWidget {
   final bool isSuccess;
   final bool isFailure;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   @override
   State<_MacGlassButton> createState() => _MacGlassButtonState();
@@ -242,6 +287,7 @@ class _MacGlassButtonState extends State<_MacGlassButton> {
       label: widget.target.label,
       child: GestureDetector(
         onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
         onTapDown: (_) => setState(() => _pressed = true),
         onTapCancel: () => setState(() => _pressed = false),
         onTapUp: (_) => setState(() => _pressed = false),

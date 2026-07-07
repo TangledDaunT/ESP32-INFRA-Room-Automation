@@ -29,10 +29,12 @@ The agent accepts only these targets:
 - `whatsapp`
 - `openclaw`
 
+Use `action: "open"` to launch/focus an app, or `action: "close"` to quit it.
+
 Example:
 
 ```sh
 curl -X POST http://100.x.x.x:8765/command \
   -H 'Content-Type: application/json' \
-  -d '{"target":"chrome"}'
+  -d '{"target":"chrome","action":"open"}'
 ```

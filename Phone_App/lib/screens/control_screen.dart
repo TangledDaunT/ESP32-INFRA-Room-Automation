@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import '../models/device_state.dart';
 import '../providers/device_provider.dart';
 import '../providers/settings_provider.dart';
-import '../services/friday_service.dart';
 import '../theme.dart';
 import '../widgets/brightness_slider.dart';
 import '../widgets/device_button.dart';
@@ -298,31 +297,6 @@ class _ControlScreenState extends State<ControlScreen>
                                       .then((_) => _resetIdleTimer());
                                 },
                               ),
-                              // Friday voice button
-                              Consumer<FridayService>(
-                                builder: (context, friday, child) {
-                                  return _BottomActionButton(
-                                    icon: friday.isRecording 
-                                        ? Symbols.mic 
-                                        : Symbols.mic_none,
-                                    label: friday.isRecording ? 'STOP' : 'FRIDAY',
-                                    isActive: friday.isRecording,
-                                    onTap: () async {
-                                      _resetIdleTimer();
-                                      await friday.toggleRecording();
-                                    },
-                                  );
-                                },
-                              ),
-                              // Sleep mode button
-                              _BottomActionButton(
-                                icon: Symbols.bedtime,
-                                label: 'SLEEP',
-                                onTap: () {
-                                  _resetIdleTimer();
-                                  _showSleepConfirmation(context, device);
-                                },
-                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -362,47 +336,6 @@ class _ControlScreenState extends State<ControlScreen>
     );
   }
 
-  // Show sleep mode confirmation dialog
-  void _showSleepConfirmation(BuildContext context, DeviceProvider device) {
-    final hours = device.settings.sleepAlarmHours;
-    final minutes = device.settings.sleepAlarmMinutes;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.black,
-        title: const Text(
-          'Enter Sleep Mode?',
-          style: TextStyle(color: AppColors.white90),
-        ),
-        content: Text(
-          'This will:\n'
-          '• Turn off RGB and backup light\n'
-          '• Set laptop brightness to 0\n'
-          '• Set alarm for ${hours}h ${minutes}m from now',
-          style: const TextStyle(color: AppColors.white60, fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
-              'CANCEL',
-              style: TextStyle(color: AppColors.white60),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await device.activateSleepMode();
-            },
-            child: const Text(
-              'CONFIRM',
-              style: TextStyle(color: AppColors.white90),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _BottomActionButton extends StatelessWidget {
@@ -410,17 +343,15 @@ class _BottomActionButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.isActive = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final bool isActive;
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? AppColors.white90 : AppColors.white60;
+    const color = AppColors.white60;
 
     return GestureDetector(
       onTap: onTap,
@@ -436,7 +367,7 @@ class _BottomActionButton extends StatelessWidget {
               icon,
               size: 20,
               color: color,
-              weight: isActive ? 400 : 300,
+              weight: 300,
             ),
             const SizedBox(height: 4),
             Text(
