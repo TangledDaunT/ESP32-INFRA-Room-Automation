@@ -6,11 +6,10 @@ Small FastAPI service for the OpenClaw Remote Mac Control screen.
 
 ```sh
 cd mac_agent
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn agent:app --host 0.0.0.0 --port 8765
+./launch.sh
 ```
+
+The launcher refreshes `.venv311` in place so it keeps working even if the workspace path changes.
 
 Set the Flutter app's `MAC AGENT URL` setting to your Mac's Tailscale address, for example:
 
