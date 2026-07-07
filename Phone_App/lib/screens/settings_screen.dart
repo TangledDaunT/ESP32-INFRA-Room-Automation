@@ -7,8 +7,10 @@ import '../models/app_settings.dart';
 import '../providers/device_provider.dart';
 import '../providers/settings_provider.dart';
 import '../theme.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/settings_row.dart';
 import '../widgets/time_picker_sheet.dart';
+import '../widgets/toggle_switch.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
