@@ -84,8 +84,11 @@ class _MotionFeedScreenState extends State<MotionFeedScreen> {
               ),
               _BottomControls(
                 onStop: () async {
+                  final device = context.read<DeviceProvider>();
                   await device.stopMotionDetection();
-                  if (mounted) Navigator.of(context).pop();
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
                 },
               ),
             ],
@@ -129,7 +132,9 @@ class _TopBar extends StatelessWidget {
             onTap: () async {
               final device = context.read<DeviceProvider>();
               await device.stopMotionDetection();
-              if (mounted) Navigator.of(context).pop();
+              if (context.mounted) {
+                Navigator.of(context).pop();
+              }
             },
             behavior: HitTestBehavior.opaque,
             child: Text(
