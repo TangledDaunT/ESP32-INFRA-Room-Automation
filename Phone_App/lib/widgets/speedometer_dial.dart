@@ -7,10 +7,11 @@ import '../theme.dart';
 
 /// A modern digital speedometer-style gauge widget.
 ///
-/// Used for Lux and Smoke sensor readouts on the dashboard.
-/// Resembles a car speedometer with a 270° arc, graduated ticks,
-/// animated needle, and a large digital value readout in the center.
-class SpeedometerDial extends StatelessWidget {
+/// Used for Lux and Smoke sensor readouts on the dashboard, and for the
+/// Mac status gauges. Resembles a car speedometer with a 270° arc,
+/// graduated ticks, animated needle, and a large digital value readout in
+/// the center.
+class SpeedometerDial extends StatefulWidget {
   const SpeedometerDial({
     super.key,
     required this.value,
