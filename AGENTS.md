@@ -4,25 +4,25 @@ Agent instructions for this workspace (ESP32 PlatformIO firmware + Flutter Andro
 
 ## Scope
 - Primary firmware lives in `src/` and is built with PlatformIO.
-- Primary mobile app lives in `Phone App/` and is built with Flutter.
-- Treat `OpenClawFirmware/`, `RoomControl/`, root `esp32_firmware/`, and `Phone App/esp32_firmware/` as legacy or alternate trees unless a task explicitly targets them.
+- Primary mobile app lives in `Phone_App/` and is built with Flutter. See [Phone_App/AGENTS.md](Phone_App/AGENTS.md) for app-specific guidance.
+- Treat `OpenClawFirmware/`, `RoomControl/`, root `esp32_firmware/`, and `Phone_App/esp32_firmware/` as legacy or alternate trees unless a task explicitly targets them.
 
 ## Read First
 - Project context and long-form system notes: [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) and [DOCS.md](DOCS.md)
-- App feature and protocol details: [Phone App/README.md](Phone%20App/README.md)
+- App feature and protocol details: [Phone_App/README.md](Phone_App/README.md)
 - Firmware runtime orchestration: [src/main.cpp](src/main.cpp)
 - Hardware and timing constants: [src/config.h](src/config.h)
-- App orchestration and lifecycle: [Phone App/lib/main.dart](Phone%20App/lib/main.dart)
-- App integration hub (MQTT/BLE/HTTP/automation): [Phone App/lib/providers/device_provider.dart](Phone%20App/lib/providers/device_provider.dart)
+- App orchestration and lifecycle: [Phone_App/lib/main.dart](Phone_App/lib/main.dart)
+- App integration hub (MQTT/BLE/HTTP/automation): [Phone_App/lib/providers/device_provider.dart](Phone_App/lib/providers/device_provider.dart)
 
 ## Phone App Connection Path
-- The Android app resolves the ESP32 base URL from `AppSettings` and uses [Phone App/lib/services/openclaw_service.dart](Phone%20App/lib/services/openclaw_service.dart) as the transport layer.
+- The Android app resolves the ESP32 base URL from `AppSettings` and uses [Phone_App/lib/services/openclaw_service.dart](Phone_App/lib/services/openclaw_service.dart) as the transport layer.
 - `DeviceProvider` is the app-side control hub: UI actions, clap automation, sleep/wakeup routines, and music mode all funnel into it before they reach the ESP32.
 - Normal control uses HTTP `POST /api/cmd`; state sync uses WebSocket `ws://<host>/ws`.
 - High-frequency brightness updates can go over WebSocket, while normal relay and mode changes prefer HTTP with WebSocket fallback.
 - Keep relay channel mapping consistent with the firmware and app docs: `0=light`, `1=fan`, `2=rgb`, `3=socket`.
 - When changing command payloads or state fields, update the app provider/service and the firmware together; the JSON contract is shared.
-- For protocol details, prefer linking to [Phone App/README.md](Phone%20App/README.md) instead of repeating payload tables here.
+- For protocol details, prefer linking to [Phone_App/README.md](Phone_App/README.md) instead of repeating payload tables here.
 
 ## Build and Run Commands
 Run from workspace root unless noted.
@@ -33,17 +33,17 @@ Run from workspace root unless noted.
 - `pio device monitor -b 115200`
 
 ### Flutter App
-Run inside `Phone App/`.
+Run inside `Phone_App/`.
 - `flutter pub get`
 - `flutter run`
 - `flutter test`
-- If you intentionally work in `Phone App/esp32_firmware/`, use its local `platformio.ini` instead of the root firmware target.
+- If you intentionally work in `Phone_App/esp32_firmware/`, use its local `platformio.ini` instead of the root firmware target.
 
 ## Architecture Boundaries
 - Firmware startup order is coordinated in `setup()` in [src/main.cpp](src/main.cpp): hardware -> restore persisted state -> automation -> network -> websocket -> sensor task.
 - Firmware main loop responsibilities in [src/main.cpp](src/main.cpp): watchdog reset, fade updates, automation tick, network housekeeping, websocket state broadcast, debounced NVS persistence, midnight reset.
 - Command ingestion on firmware is unified through `handleCommand(...)` in [src/main.cpp](src/main.cpp). Keep JSON command shape compatible when changing app-side command payloads.
-- Flutter app state authority is `DeviceProvider` in [Phone App/lib/providers/device_provider.dart](Phone%20App/lib/providers/device_provider.dart). MQTT, BLE, OpenClaw HTTP, clap automation, sleep/wakeup flows are coordinated there.
+- Flutter app state authority is `DeviceProvider` in [Phone_App/lib/providers/device_provider.dart](Phone_App/lib/providers/device_provider.dart). MQTT, BLE, OpenClaw HTTP, clap automation, sleep/wakeup flows are coordinated there.
 
 ## Conventions and Expectations
 - Keep relay semantics consistent: relay module is active LOW (see comments in [src/config.h](src/config.h)).
@@ -56,7 +56,7 @@ Run inside `Phone App/`.
 - Do not break persisted keys in firmware NVS (`r0..r3`, `flash`, `strip`, `cigs`, `mode`) in [src/main.cpp](src/main.cpp) unless a migration is added.
 - `src/config.h` currently contains real WiFi credentials; avoid committing additional secrets and prefer local overrides for sensitive values.
 - BLE and MQTT can both update state; avoid feedback loops when adding new command pathways in `DeviceProvider`.
-- Android permissions are extensive for BLE + microphone foreground service; preserve required entries in [Phone App/android/app/src/main/AndroidManifest.xml](Phone%20App/android/app/src/main/AndroidManifest.xml) when refactoring mobile features.
+- Android permissions are extensive for BLE + microphone foreground service; preserve required entries in [Phone_App/android/app/src/main/AndroidManifest.xml](Phone_App/android/app/src/main/AndroidManifest.xml) when refactoring mobile features.
 
 ## Change Playbooks
 - New firmware command:
@@ -66,9 +66,9 @@ Run inside `Phone App/`.
   4. Update app provider/service payload producers and consumers.
 
 - New app control/sensor field:
-  1. Add field to models in `Phone App/lib/models/`.
-  2. Update parse/update logic in [Phone App/lib/providers/device_provider.dart](Phone%20App/lib/providers/device_provider.dart).
-  3. Update UI screen/widgets under `Phone App/lib/screens/` and `Phone App/lib/widgets/`.
+  1. Add field to models in `Phone_App/lib/models/`.
+  2. Update parse/update logic in [Phone_App/lib/providers/device_provider.dart](Phone_App/lib/providers/device_provider.dart).
+  3. Update UI screen/widgets under `Phone_App/lib/screens/` and `Phone_App/lib/widgets/`.
   4. Verify MQTT topic mapping and BLE/OpenClaw sync behavior.
 
 ## Validation Checklist
@@ -79,11 +79,11 @@ Run inside `Phone App/`.
 
 ## For AI coding agents
 - **Goal:** Make minimal, well-tested changes; prefer linking to existing docs rather than copying them.
-- **Build & test:** Use the commands in the **Build and Run Commands** section. Firmware: run `pio run` from the workspace root. App: `cd Phone App && flutter pub get && flutter test`.
-- **Where to edit:** Firmware source in `src/` (see [src/main.cpp](src/main.cpp)); app code in `Phone App/lib/` (see [Phone App/lib/providers/device_provider.dart](Phone%20App/lib/providers/device_provider.dart)).
+- **Build & test:** Use the commands in the **Build and Run Commands** section. Firmware: run `pio run` from the workspace root. App: `cd Phone_App && flutter pub get && flutter test`.
+- **Where to edit:** Firmware source in `src/` (see [src/main.cpp](src/main.cpp)); app code in `Phone_App/lib/` (see [Phone_App/lib/providers/device_provider.dart](Phone_App/lib/providers/device_provider.dart)).
 - **Key invariants:** Do NOT change persisted NVS keys (`r0..r3`, `flash`, `strip`, `cigs`, `mode`) without adding a migration. Keep relay semantics (active LOW) and brightness range (0–255) consistent.
 - **Secrets:** `src/config.h` currently contains real WiFi credentials — never commit additional secrets. Prefer local overrides and .env-like mechanisms.
-- **Cross-path effects:** When adding commands or state fields: update firmware `handleCommand(...)`, include state in websocket broadcasts, and update the Flutter `DeviceProvider` and models (`Phone App/lib/models/`).
+- **Cross-path effects:** When adding commands or state fields: update firmware `handleCommand(...)`, include state in websocket broadcasts, and update the Flutter `DeviceProvider` and models (`Phone_App/lib/models/`).
 - **Communications:** Verify changes over all transport paths (MQTT, BLE, WebSocket, OpenClaw HTTP) to avoid feedback loops.
 - **PRs & commits:** Keep changes small and focused. Include build verification steps in PR description (how to run `pio run`, where to run Flutter tests).
 - **When unsure:** Link to relevant files in this document and ask for clarification before modifying hardware-related timing or NVS keys.

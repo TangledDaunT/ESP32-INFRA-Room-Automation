@@ -1,26 +1,36 @@
-# Repository Guidelines
+# Phone_App Guidelines
 
-## Project Structure & Module Organization
-This repository contains the OpenClaw Flutter control app and a local ESP32 firmware target. Flutter source lives in `lib/`, with screens in `lib/screens/`, providers in `lib/providers/`, services in `lib/services/`, models in `lib/models/`, and reusable UI in `lib/widgets/`. Tests live in `test/`. Android platform code and manifests are under `android/`. Static assets are in `assets/` and `web/`. Firmware code for this tree is in `src/` and is built through the local `platformio.ini`.
+## Scope
+- This file applies to the Flutter Android app in `Phone_App/`.
+- For workspace-wide firmware and cross-component guidance, see [../AGENTS.md](../AGENTS.md).
 
-## Build, Test, and Development Commands
-Run Flutter commands from the repository root:
+## Read First
+- App feature and protocol details: [README.md](README.md)
+- App entry and startup wiring: [lib/main.dart](lib/main.dart)
+- Runtime bootstrap helpers: [lib/app_runtime.dart](lib/app_runtime.dart)
+- State authority and automation hub: [lib/providers/device_provider.dart](lib/providers/device_provider.dart)
+- Device and settings models: [lib/models/device_state.dart](lib/models/device_state.dart) and [lib/models/app_settings.dart](lib/models/app_settings.dart)
+- Transport layer: [lib/services/openclaw_service.dart](lib/services/openclaw_service.dart)
+- Important tests: [test/app_runtime_test.dart](test/app_runtime_test.dart), [test/app_settings_test.dart](test/app_settings_test.dart), [test/settings_provider_test.dart](test/settings_provider_test.dart), [test/friday_service_test.dart](test/friday_service_test.dart), [test/alarm_test.dart](test/alarm_test.dart), [test/widget_test.dart](test/widget_test.dart)
 
-- `flutter pub get` installs Dart and Flutter dependencies.
-- `flutter test` runs the unit and widget test suite in `test/`.
-- `flutter run` launches the app on a connected device or emulator.
-- `flutter analyze` checks the project against `analysis_options.yaml`.
-- `pio run` builds the ESP32 firmware in `src/`.
-- `pio run -t upload` uploads firmware to the connected ESP32.
+## Build and Validation
+- Run Flutter commands from `Phone_App/`.
+- `flutter pub get` installs dependencies.
+- `flutter test` is the primary validation step for app changes.
+- `flutter analyze` is a useful follow-up when touching shared models, providers, or services.
+- If a change affects firmware payloads or state fields, verify the matching firmware path in the repo root as well.
 
-## Coding Style & Naming Conventions
-Use Dart defaults: two-space indentation, `lowerCamelCase` for variables and methods, `UpperCamelCase` for classes, and `snake_case.dart` filenames. Keep state coordination in providers, transport logic in services, and UI composition in screens/widgets. Prefer small, focused files and reuse existing app models before adding new data shapes. For firmware, keep relay channels stable: `0=light`, `1=fan`, `2=rgb`, `3=socket`.
+## App Conventions
+- Keep state coordination in providers, transport logic in services, and UI composition in screens and widgets.
+- Treat `DeviceProvider` as the app-side control hub; most behavior changes belong there before they reach the UI.
+- Keep relay channels stable: `0=light`, `1=fan`, `2=rgb`, `3=socket`.
+- Preserve the JSON command dialect used by the app and firmware. Update both sides together when changing `cmd`, `ch`, `val`, or state field names.
+- Reuse existing models before introducing new shapes.
 
-## Testing Guidelines
-Use Flutter's standard `flutter_test` framework. Name test files with `_test.dart`, such as `settings_provider_test.dart` or `alarm_test.dart`. Add or update tests for provider logic, parsing, persistence, and service behavior when changing app state or protocols. For firmware or command payload changes, verify both the firmware build with `pio run` and app tests with `flutter test`.
+## Testing Focus
+- Update or add tests for provider logic, parsing, persistence, service behavior, and widget formatting when app state changes.
+- Favor narrow tests around `lib/providers/`, `lib/models/`, and `lib/services/` when behavior changes are localized.
 
-## Commit & Pull Request Guidelines
-Recent history uses concise prefixes like `feat:` and `fix:`; follow that style where possible, for example `feat: add alarm sync status` or `fix: handle websocket reconnect`. Keep commits focused. Pull requests should describe the user-visible change, list validation steps run, link related issues, and include screenshots or recordings for UI changes.
-
-## Security & Configuration Tips
-Do not add secrets, WiFi credentials, tokens, or API keys to tracked files. Preserve Android permissions required for BLE, microphone, and foreground services unless the feature is intentionally removed. When changing command payloads or device state fields, update both Flutter app code and ESP32 handling so HTTP, WebSocket, MQTT, and BLE paths stay compatible.
+## Platform Notes
+- Preserve Android permissions required for BLE, microphone, foreground services, wake/lockscreen behavior, and cleartext networking unless the feature is intentionally removed.
+- Avoid adding secrets, WiFi credentials, tokens, or API keys to tracked files.
