@@ -589,11 +589,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 _dirty = true;
                               });
                             },
-                            trailing: _buildTapValue(
-                              _draft.historySyncEnabled
-                                  ? 'ENABLED'
-                                  : 'DISABLED',
-                            ),
+                            trailing: ToggleSwitch(value: _draft.historySyncEnabled),
                           ),
                           SettingsRow(
                             label: 'LAPTOP LOG URL',
