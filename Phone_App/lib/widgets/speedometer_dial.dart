@@ -49,24 +49,45 @@ class SpeedometerDial extends StatefulWidget {
   final Color? statusColor;
 
   @override
+  State<SpeedometerDial> createState() => _SpeedometerDialState();
+}
+
+class _SpeedometerDialState extends State<SpeedometerDial> {
+  late double _target = widget.value.clamp(0, widget.maxValue);
+
+  @override
+  void didUpdateWidget(covariant SpeedometerDial oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final clamped = widget.value.clamp(0.0, widget.maxValue);
+    // Ignore insignificant sensor jitter — retargeting the tween on every
+    // tiny fluctuation means it never settles, so the gauge (and its
+    // CustomPaint) ends up repainting continuously instead of only when
+    // the reading meaningfully changes.
+    final epsilon = (widget.maxValue * 0.005).clamp(0.3, double.infinity);
+    if ((clamped - _target).abs() >= epsilon) {
+      _target = clamped;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
-      tween: Tween<double>(end: value.clamp(0, maxValue)),
+      tween: Tween<double>(end: _target),
       duration: const Duration(milliseconds: 900),
       curve: Curves.easeOutCubic,
       builder: (context, animatedValue, _) {
         return CustomPaint(
           painter: _SpeedometerPainter(
             value: animatedValue,
-            maxValue: maxValue,
-            warningThreshold: warningThreshold,
+            maxValue: widget.maxValue,
+            warningThreshold: widget.warningThreshold,
           ),
           child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  icon,
+                  widget.icon,
                   size: 16,
                   color: AppColors.white40,
                   fill: 0,
@@ -85,21 +106,21 @@ class SpeedometerDial extends StatefulWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  label.toUpperCase(),
+                  widget.label.toUpperCase(),
                   style: AppTextStyles.labelSM(color: AppColors.white40),
                 ),
-                if (statusLabel != null) ...[
+                if (widget.statusLabel != null) ...[
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: (statusColor ?? Colors.white).withValues(alpha: 0.15),
+                      color: (widget.statusColor ?? Colors.white).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      statusLabel!,
+                      widget.statusLabel!,
                       style: AppTextStyles.labelSM().copyWith(
-                        color: statusColor ?? Colors.white70,
+                        color: widget.statusColor ?? Colors.white70,
                         fontSize: 9,
                         letterSpacing: 1.2,
                       ),
