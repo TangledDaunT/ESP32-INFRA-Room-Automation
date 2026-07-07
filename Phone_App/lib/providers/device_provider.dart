@@ -110,6 +110,10 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
     _wakeup.onRgbOn = () => setRgb(true);
     _wakeup.onRgbBrightness = (b) => setRgbBrightness(b);
     _wakeup.onLightOn = () => setLight(true);
+    // Mark SleepService as "waking up" for the ramp's duration so its own
+    // sleep-detection evaluation (still ticking every 60s) doesn't fight an
+    // in-progress ramp by re-triggering sleeping/turn-everything-off.
+    _wakeup.onRampStarted = () => _sleep.forceState(SleepState.wakingUp);
     _wakeup.onWakeupComplete = () {
       _sleep.forceState(SleepState.awake);
     };
