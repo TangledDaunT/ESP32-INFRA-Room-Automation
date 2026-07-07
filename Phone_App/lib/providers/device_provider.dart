@@ -74,6 +74,7 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
   AppSettings get settings => _settings;
   SpotifyTrack? get currentTrack => _spotify.currentTrack;
   bool get motionDetectActive => _state.motionDetectActive;
+  MotionDetector get motionDetector => _motion;
 
   void _setupCallbacks() {
     // ── OpenClaw state sync ────────────────────────────

@@ -32,8 +32,7 @@ class _MotionFeedScreenState extends State<MotionFeedScreen> {
     await device.startMotionDetection();
     if (!mounted) return;
 
-    final service = device._motion;
-    final controller = service._controller;
+    final controller = device.motionDetector._controller;
     if (controller == null || !controller.value.isInitialized) {
       if (mounted) {
         setState(() {
