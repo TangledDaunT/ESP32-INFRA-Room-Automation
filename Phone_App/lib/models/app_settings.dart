@@ -80,6 +80,13 @@ class AppSettings {
   // ── Spotify ───────────────────────────────────────────
   bool spotifyEnabled;
 
+  // ── Motion Detection ─────────────────────────────────
+  bool motionDetectEnabled;
+  String motionDetectUserKey;
+  String motionDetectApiToken;
+  double motionSensitivity;
+  int motionDebounceMs;
+
   AppSettings({
     // ── Real ESP32 HTTP endpoint ───────────────────────────────
     // MQTT: HiveMQ Cloud TLS (matches firmware config.h)
