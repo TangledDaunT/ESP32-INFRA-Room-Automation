@@ -1,5 +1,5 @@
 #!/bin/sh
-'''exec' "/Volumes/Shreyansh-SSD/Documents/ESP 32 INFRA/Phone App/mac_agent/.venv311/bin/python" "$0" "$@"
+'''exec' "/Volumes/Shreyansh-SSD/Documents/ESP 32 INFRA/Phone_App/mac_agent/.venv311/bin/python3.13" "$0" "$@"
 ' '''
 import sys
 from uvicorn.main import main
