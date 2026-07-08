@@ -11,7 +11,6 @@ import '../services/page_activity_controller.dart';
 import '../theme.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/speedometer_dial.dart';
-import '../widgets/staggered_reveal.dart';
 
 /// Dedicated Mac vitals page — CPU / memory / disk gauges, battery, wifi,
 /// host info, and the agent's own tiny resource footprint.
