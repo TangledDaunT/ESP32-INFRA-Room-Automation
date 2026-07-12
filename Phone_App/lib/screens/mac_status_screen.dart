@@ -11,6 +11,7 @@ import '../services/page_activity_controller.dart';
 import '../theme.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/speedometer_dial.dart';
+import '../widgets/staggered_reveal.dart';
 
 /// Dedicated Mac vitals page — CPU / memory / disk gauges, battery, wifi,
 /// host info, and the agent's own tiny resource footprint.
@@ -34,7 +35,10 @@ class _MacStatusScreenState extends State<MacStatusScreen> {
   PageActivityController? _activity;
   MacSystemStatus? _status;
   bool _loading = true;
+  bool _refreshing = false;
   DateTime? _lastUpdated;
+  String? _serviceBaseUrl;
+  MacService? _service;
 
   final List<double> _cpuHistory = [];
   final List<double> _memHistory = [];
@@ -42,6 +46,11 @@ class _MacStatusScreenState extends State<MacStatusScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final baseUrl = context.read<SettingsProvider>().settings.macAgentBaseUrl;
+    if (_serviceBaseUrl != baseUrl) {
+      _serviceBaseUrl = baseUrl;
+      _service = MacService(baseUrl);
+    }
     final activity = context.read<PageActivityController>();
     if (!identical(_activity, activity)) {
       _activity?.removeListener(_handleVisibilityChange);
@@ -79,11 +88,15 @@ class _MacStatusScreenState extends State<MacStatusScreen> {
   }
 
   Future<void> _refresh() async {
-    final service = MacService(
-      context.read<SettingsProvider>().settings.macAgentBaseUrl,
-    );
+    if (_refreshing) return;
+    _refreshing = true;
+    final service = _service ??
+        MacService(context.read<SettingsProvider>().settings.macAgentBaseUrl);
     final status = await service.fetchStatus();
-    if (!mounted) return;
+    if (!mounted) {
+      _refreshing = false;
+      return;
+    }
     setState(() {
       _status = status;
       _loading = false;
@@ -93,6 +106,7 @@ class _MacStatusScreenState extends State<MacStatusScreen> {
         _pushHistory(_memHistory, status.memoryPercent);
       }
     });
+    _refreshing = false;
   }
 
   void _pushHistory(List<double> history, double value) {
@@ -103,64 +117,95 @@ class _MacStatusScreenState extends State<MacStatusScreen> {
   @override
   Widget build(BuildContext context) {
     final macAgentUrl =
-        context.watch<SettingsProvider>().settings.macAgentBaseUrl;
-    final status = _status;
-    final online = status?.reachable == true;
-
-    return Scaffold(
-      backgroundColor: AppColors.black,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+      body: Stack(
+        children: [
+          const Positioned(
+            top: -80,
+            right: -50,
+            child: _AmbientGlow(color: Color(0xFF1845FF)),
+          ),
+          const Positioned(
+            bottom: -90,
+            left: -60,
+            child: _AmbientGlow(color: Color(0xFF1E8B62)),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('MAC STATUS', style: AppTextStyles.labelLG(color: AppColors.white90)),
-                  const SizedBox(width: 10),
-                  _StatusDot(online: online),
-                  const Spacer(),
-                  Text(
-                    macAgentUrl.replaceFirst(RegExp(r'^https?://'), ''),
-                    style: AppTextStyles.labelSM(color: AppColors.white30),
+                  Row(
+                    children: [
+                      Text('MAC STATUS', style: AppTextStyles.labelLG(color: AppColors.white90)),
+                      const SizedBox(width: 10),
+                      _StatusDot(online: online),
+                      const Spacer(),
+                      Text(
+                        macAgentUrl.replaceFirst(RegExp(r'^https?://'), ''),
+                        style: AppTextStyles.labelSM(color: AppColors.white30),
+                      ),
+                      const SizedBox(width: 12),
+                      IconButton(
+                        onPressed: _loading || _refreshing ? null : _refresh,
+                        icon: AnimatedRotation(
+                          turns: _refreshing ? 0.25 : 0,
+                          duration: const Duration(milliseconds: 220),
+                          child: const Icon(Symbols.refresh, size: 18),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  IconButton(
-                    onPressed: _loading ? null : _refresh,
-                    icon: const Icon(Symbols.refresh, size: 18),
+                  const SizedBox(height: 14),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 260),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (child, animation) {
+                        final offset = Tween<Offset>(
+                          begin: const Offset(0, 0.03),
+                          end: Offset.zero,
+                        ).animate(animation);
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(position: offset, child: child),
+                        );
+                      },
+                      child: _loading
+                          ? const Center(
+                              key: ValueKey('loading'),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.6,
+                                color: AppColors.white60,
+                              ),
+                            )
+                          : online
+                              ? _buildBody(status!, key: const ValueKey('body'))
+                              : _buildOffline(key: const ValueKey('offline')),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _lastUpdated == null
+                        ? 'Waiting for first update…'
+                        : online
+                            ? 'Updated ${TimeOfDay.fromDateTime(_lastUpdated!).format(context)}'
+                            : 'Last checked ${TimeOfDay.fromDateTime(_lastUpdated!).format(context)}',
+                    style: AppTextStyles.labelSM(color: AppColors.white30),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              Expanded(
-                child: _loading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.6,
-                          color: AppColors.white60,
-                        ),
-                      )
-                    : online
-                        ? _buildBody(status!)
-                        : _buildOffline(),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                _lastUpdated == null
+            ),
+          ),
+        ],
                     ? 'Waiting for first update…'
                     : 'Updated ${TimeOfDay.fromDateTime(_lastUpdated!).format(context)}',
                 style: AppTextStyles.labelSM(color: AppColors.white30),
               ),
-            ],
+  Widget _buildOffline({Key? key}) {
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOffline() {
-    return Center(
+      key: key,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -168,96 +213,109 @@ class _MacStatusScreenState extends State<MacStatusScreen> {
           const SizedBox(height: 12),
           Text('MAC AGENT UNREACHABLE', style: AppTextStyles.labelLG(color: AppColors.white30)),
         ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Symbols.desktop_access_disabled, size: 36, color: AppColors.white20),
+  Widget _buildBody(MacSystemStatus status, {Key? key}) {
+    return Column(
+      key: key,
+        ],
       ),
     );
   }
-
-  Widget _buildBody(MacSystemStatus status) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 6,
-          child: Row(
-            children: [
-              Expanded(
-                child: SpeedometerDial(
-                  value: status.cpuPercent,
-                  maxValue: 100,
-                  label: 'CPU',
-                  icon: Symbols.memory,
-                  unit: '%',
-                  warningThreshold: 85,
-                  statusColor: status.cpuPercent >= 85 ? const Color(0xFFFF6B6B) : null,
+          child: StaggeredReveal(
+            index: 0,
+            child: Row(
+              children: [
+                Expanded(
+                  child: SpeedometerDial(
+                    value: status.cpuPercent,
+                    maxValue: 100,
+                    label: 'CPU',
+                    icon: Symbols.memory,
+                    unit: '%',
+                    warningThreshold: 85,
+                    statusColor: status.cpuPercent >= 85 ? const Color(0xFFFF6B6B) : null,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: SpeedometerDial(
-                  value: status.memoryPercent,
-                  maxValue: 100,
-                  label: 'MEMORY',
-                  icon: Symbols.dns,
-                  unit: '%',
-                  warningThreshold: 90,
-                  statusColor: status.memoryPercent >= 90 ? const Color(0xFFFF6B6B) : null,
+                Expanded(
+                  child: SpeedometerDial(
+                    value: status.memoryPercent,
+                    maxValue: 100,
+                    label: 'MEMORY',
+                    icon: Symbols.dns,
+                    unit: '%',
+                    warningThreshold: 90,
+                    statusColor: status.memoryPercent >= 90 ? const Color(0xFFFF6B6B) : null,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: SpeedometerDial(
-                  value: status.diskPercent,
-                  maxValue: 100,
-                  label: 'DISK',
-                  icon: Symbols.hard_drive,
-                  unit: '%',
-                  warningThreshold: 90,
-                  statusColor: status.diskPercent >= 90 ? const Color(0xFFFF6B6B) : null,
+                Expanded(
+                  child: SpeedometerDial(
+                    value: status.diskPercent,
+                    maxValue: 100,
+                    label: 'DISK',
+                    icon: Symbols.hard_drive,
+                    unit: '%',
+                    warningThreshold: 90,
+                    statusColor: status.diskPercent >= 90 ? const Color(0xFFFF6B6B) : null,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 12),
         Expanded(
           flex: 3,
-          child: GlassContainer(
-            borderRadius: 20,
-            padding: const EdgeInsets.all(14),
-            child: _SparklineRow(cpuHistory: _cpuHistory, memHistory: _memHistory),
+          child: StaggeredReveal(
+            index: 1,
+            child: GlassContainer(
+              borderRadius: 20,
+              padding: const EdgeInsets.all(14),
+              child: _SparklineRow(cpuHistory: _cpuHistory, memHistory: _memHistory),
+            ),
           ),
         ),
         const SizedBox(height: 12),
         SizedBox(
           height: 64,
-          child: Row(
-            children: [
-              _StatChip(
-                label: 'BATTERY',
-                value: status.batteryPercent == null
-                    ? '--'
-                    : '${status.batteryPercent!.round()}%${status.batteryCharging == true ? ' ⚡' : ''}',
-              ),
-              const SizedBox(width: 10),
-              _StatChip(label: 'WIFI', value: status.wifiSsid ?? 'NO LINK'),
-              const SizedBox(width: 10),
-              _StatChip(label: 'UPTIME', value: _formatUptime(status.uptimeSeconds)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _StatChip(
-                  label: 'AGENT FOOTPRINT',
-                  value: _formatAgentFootprint(status),
+          child: StaggeredReveal(
+            index: 2,
+            child: Row(
+              children: [
+                _StatChip(
+                  label: 'BATTERY',
+                  value: status.batteryPercent == null
+                      ? '--'
+                      : '${status.batteryPercent!.round()}%${status.batteryCharging == true ? ' ⚡' : ''}',
                 ),
-              ),
-            ],
+                const SizedBox(width: 10),
+                _StatChip(label: 'WIFI', value: status.wifiSsid ?? 'NO LINK'),
+                const SizedBox(width: 10),
+                _StatChip(label: 'UPTIME', value: _formatUptime(status.uptimeSeconds)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _StatChip(
+                    label: 'AGENT FOOTPRINT',
+                    value: _formatAgentFootprint(status),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         if (status.hostname != null || status.macosVersion != null) ...[
           const SizedBox(height: 8),
-          Text(
-            [
-              if (status.hostname != null) status.hostname!,
-              if (status.macosVersion != null) 'macOS ${status.macosVersion}',
-            ].join('  ·  '),
-            style: AppTextStyles.labelSM(color: AppColors.white30),
+          StaggeredReveal(
+            index: 3,
+            child: Text(
+              [
+                if (status.hostname != null) status.hostname!,
+                if (status.macosVersion != null) 'macOS ${status.macosVersion}',
+              ].join('  ·  '),
+              style: AppTextStyles.labelSM(color: AppColors.white30),
+            ),
           ),
         ],
       ],
@@ -274,6 +332,36 @@ class _MacStatusScreenState extends State<MacStatusScreen> {
 
   String _formatAgentFootprint(MacSystemStatus status) {
     if (status.agentCpuPercent == null && status.agentMemoryMb == null) {
+      return '--';
+    }
+    final cpu = status.agentCpuPercent?.toStringAsFixed(1) ?? '--';
+    final mem = status.agentMemoryMb?.round().toString() ?? '--';
+    return '$cpu% CPU · ${mem}MB';
+  }
+}
+
+class _AmbientGlow extends StatelessWidget {
+  const _AmbientGlow({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: 220,
+        height: 220,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [color.withValues(alpha: 0.28), Colors.transparent],
+            stops: const [0, 1],
+          ),
+        ),
+      ),
+    );
+  }
+}
       return '--';
     }
     final cpu = status.agentCpuPercent?.toStringAsFixed(1) ?? '--';
