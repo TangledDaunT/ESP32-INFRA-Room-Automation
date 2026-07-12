@@ -9,6 +9,7 @@ import '../services/mac_service.dart';
 import '../services/page_activity_controller.dart';
 import '../theme.dart';
 import '../widgets/glass_action_button.dart';
+import '../widgets/glass_container.dart';
 import '../widgets/staggered_reveal.dart';
 
 class MacControlScreen extends StatefulWidget {
@@ -238,7 +239,7 @@ class _MacControlScreenState extends State<MacControlScreen> {
   }
 }
 
-class _HeaderIconButton extends StatelessWidget {
+class _HeaderIconButton extends StatefulWidget {
   const _HeaderIconButton({
     required this.tooltip,
     required this.icon,
@@ -250,25 +251,33 @@ class _HeaderIconButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_HeaderIconButton> createState() => _HeaderIconButtonState();
+}
+
+class _HeaderIconButtonState extends State<_HeaderIconButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: tooltip,
+      message: widget.tooltip,
       child: GestureDetector(
-        onTap: onTap,
+        onTap: widget.onTap,
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapCancel: () => setState(() => _pressed = false),
+        onTapUp: (_) => setState(() => _pressed = false),
         behavior: HitTestBehavior.opaque,
-        child: SizedBox.square(
-          dimension: 36,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.white.withValues(alpha: 0.08),
-              border: Border.all(
-                color: AppColors.white.withValues(alpha: 0.18),
-                width: 0.7,
-              ),
-            ),
+        child: AnimatedScale(
+          duration: GlassDecoration.motionFast,
+          curve: GlassDecoration.motionCurve,
+          scale: _pressed ? 0.94 : 1,
+          child: GlassContainer(
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            pressed: _pressed,
             child: Icon(
-              icon,
+              widget.icon,
               size: 18,
               color: AppColors.white60,
               fill: 0,

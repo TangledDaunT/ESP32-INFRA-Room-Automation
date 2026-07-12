@@ -6,7 +6,7 @@ import '../theme.dart';
 ///
 /// ON state: brighter icon, subtle white glow, highlighted glass container.
 /// OFF state: dimmed icon, minimal glass container.
-class DeviceButton extends StatelessWidget {
+class DeviceButton extends StatefulWidget {
   const DeviceButton({
     super.key,
     required this.icon,
@@ -28,42 +28,64 @@ class DeviceButton extends StatelessWidget {
   final String? semanticLabel;
 
   @override
+  State<DeviceButton> createState() => _DeviceButtonState();
+}
+
+class _DeviceButtonState extends State<DeviceButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      toggled: isOn,
-      label: semanticLabel,
+      toggled: widget.isOn,
+      label: widget.semanticLabel,
       child: GestureDetector(
-        onTap: onTap,
+        onTap: widget.onTap,
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapCancel: () => setState(() => _pressed = false),
+        onTapUp: (_) => setState(() => _pressed = false),
         behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-          decoration: GlassDecoration.panel(
-            borderRadius: 14,
-            isActive: isOn,
-          ).copyWith(
-            boxShadow: isOn ? GlassDecoration.glow(blur: 16) : null,
-          ),
-          child: Center(
-            child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(end: isOn ? 1 : 0),
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOut,
-              builder: (context, value, _) {
-                return Icon(
-                  icon,
-                  size: 28,
-                  color: Color.lerp(
-                    AppColors.white20,
-                    AppColors.white90,
-                    value,
-                  ),
-                  fill: value,
-                  weight: 200 + (value * 200),
-                  opticalSize: 24,
-                );
-              },
+        child: AnimatedScale(
+          duration: GlassDecoration.motionFast,
+          curve: Curves.easeOutCubic,
+          scale: _pressed ? 0.975 : 1,
+          child: AnimatedContainer(
+            duration: GlassDecoration.motionMedium,
+            curve: GlassDecoration.motionCurve,
+            decoration: GlassDecoration.panel(
+              borderRadius: 16,
+              isActive: widget.isOn,
+              pressed: _pressed,
+            ),
+            child: Center(
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(end: widget.isOn ? 1 : 0),
+                duration: GlassDecoration.motionMedium,
+                curve: GlassDecoration.motionCurve,
+                builder: (context, value, _) {
+                  return Icon(
+                    widget.icon,
+                    size: 29,
+                    color: Color.lerp(
+                      AppColors.white20,
+                      AppColors.white90,
+                      value,
+                    ),
+                    fill: value,
+                    weight: 220 + (value * 210),
+                    opticalSize: 24,
+                    shadows: widget.isOn
+                        ? [
+                            Shadow(
+                              color: AppColors.white.withValues(alpha: 0.22),
+                              blurRadius: 18,
+                            ),
+                          ]
+                        : null,
+                  );
+                },
+              ),
             ),
           ),
         ),

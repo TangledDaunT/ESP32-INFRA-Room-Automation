@@ -64,12 +64,12 @@ class _GlassActionButtonState extends State<GlassActionButton> {
         onTapUp: (_) => setState(() => _pressed = false),
         behavior: HitTestBehavior.opaque,
         child: AnimatedScale(
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutBack,
-          scale: _pressed ? 1.035 : 1,
+          duration: GlassDecoration.motionFast,
+          curve: GlassDecoration.motionCurve,
+          scale: _pressed ? 0.985 : 1,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
+            duration: GlassDecoration.motionMedium,
+            curve: GlassDecoration.motionCurve,
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(widget.borderRadius),
@@ -91,6 +91,11 @@ class _GlassActionButtonState extends State<GlassActionButton> {
                 stops: const [0, 0.55, 1],
               ),
               boxShadow: [
+                ...GlassDecoration.depth(
+                  isActive: active || failed,
+                  pressed: _pressed,
+                  color: glowColor,
+                ),
                 BoxShadow(
                   color: glowColor.withValues(
                     alpha: active || failed ? 0.18 : 0.06,

@@ -26,7 +26,9 @@ class _MacPlaybackScreenState extends State<MacPlaybackScreen> {
   Timer? _volumeTimer;
   bool _loading = true;
   bool _busy = false;
+  bool _outputsRefreshing = false;
   bool _volumeSending = false;
+  int? _queuedVolume;
   double _volume = 50;
   String? _selectedDeviceId;
   String? _message;
@@ -68,15 +70,21 @@ class _MacPlaybackScreenState extends State<MacPlaybackScreen> {
   }
 
   Future<void> _refreshOutputs() async {
+    if (_outputsRefreshing) return;
+    _outputsRefreshing = true;
     setState(() => _loading = true);
-    final devices = await _service().fetchOutputDevices();
-    if (!mounted) return;
-    setState(() {
-      _devices = devices;
-      _selectedDeviceId ??= devices.isEmpty ? null : devices.first.id;
-      _loading = false;
-      _message = devices.isEmpty ? 'No output devices found' : null;
-    });
+    try {
+      final devices = await _service().fetchOutputDevices();
+      if (!mounted) return;
+      setState(() {
+        _devices = devices;
+        _selectedDeviceId ??= devices.isEmpty ? null : devices.first.id;
+        _loading = false;
+        _message = devices.isEmpty ? 'No output devices found' : null;
+      });
+    } finally {
+      _outputsRefreshing = false;
+    }
   }
 
   Future<void> _runAction(
@@ -123,17 +131,26 @@ class _MacPlaybackScreenState extends State<MacPlaybackScreen> {
   }
 
   Future<void> _sendVolume(int value) async {
-    if (_volumeSending) return;
+    final clamped = value.clamp(0, 100);
+    if (_volumeSending) {
+      _queuedVolume = clamped;
+      return;
+    }
     _volumeSending = true;
-    final ok = await _service().setVolume(value);
+    final ok = await _service().setVolume(clamped);
     if (!mounted) {
       _volumeSending = false;
       return;
     }
     setState(() {
-      _message = ok ? 'Volume ${value.clamp(0, 100)}%' : 'Volume update failed';
+      _message = ok ? 'Volume $clamped%' : 'Volume update failed';
     });
     _volumeSending = false;
+    final queued = _queuedVolume;
+    _queuedVolume = null;
+    if (queued != null && queued != clamped) {
+      await _sendVolume(queued);
+    }
   }
 
   Future<void> _onVolumeChangeEnd(double value) async {
@@ -434,7 +451,7 @@ class _VolumePanel extends StatelessWidget {
   }
 }
 
-class _MediaButton extends StatelessWidget {
+class _MediaButton extends StatefulWidget {
   const _MediaButton({
     required this.icon,
     required this.label,
@@ -450,37 +467,56 @@ class _MediaButton extends StatelessWidget {
   final bool prominent;
 
   @override
+  State<_MediaButton> createState() => _MediaButtonState();
+}
+
+class _MediaButtonState extends State<_MediaButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: label,
+      message: widget.label,
       child: GestureDetector(
-        onTap: enabled ? onTap : null,
+        onTap: widget.enabled ? widget.onTap : null,
+        onTapDown:
+            widget.enabled ? (_) => setState(() => _pressed = true) : null,
+        onTapCancel:
+            widget.enabled ? () => setState(() => _pressed = false) : null,
+        onTapUp:
+            widget.enabled ? (_) => setState(() => _pressed = false) : null,
         behavior: HitTestBehavior.opaque,
         child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 160),
-          opacity: enabled ? 1 : 0.45,
-          child: GlassContainer(
-            borderRadius: 18,
-            isActive: prominent,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  size: prominent ? 32 : 24,
-                  color: AppColors.white90,
-                  fill: 0,
-                  weight: 300,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.labelSM(color: AppColors.white90),
-                ),
-              ],
+          duration: GlassDecoration.motionFast,
+          opacity: widget.enabled ? 1 : 0.45,
+          child: AnimatedScale(
+            duration: GlassDecoration.motionFast,
+            curve: GlassDecoration.motionCurve,
+            scale: _pressed ? 0.97 : 1,
+            child: GlassContainer(
+              borderRadius: 18,
+              isActive: widget.prominent,
+              pressed: _pressed,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    widget.icon,
+                    size: widget.prominent ? 32 : 24,
+                    color: AppColors.white90,
+                    fill: 0,
+                    weight: 300,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.labelSM(color: AppColors.white90),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

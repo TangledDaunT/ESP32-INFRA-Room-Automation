@@ -24,6 +24,7 @@ class _MacMediaScreenState extends State<MacMediaScreen> {
   Timer? _pollTimer;
   bool _loading = true;
   bool _busy = false;
+  bool _refreshing = false;
   MacSystemStatus? _status;
   List<MacNotificationItem> _notifications = const [];
   String? _previewBase64;
@@ -69,6 +70,8 @@ class _MacMediaScreenState extends State<MacMediaScreen> {
   }
 
   Future<void> _refresh({bool silent = false}) async {
+    if (_refreshing) return;
+    _refreshing = true;
     final service = MacService(
       context.read<SettingsProvider>().settings.macAgentBaseUrl,
     );
@@ -92,6 +95,8 @@ class _MacMediaScreenState extends State<MacMediaScreen> {
         _loading = false;
         _message = error.toString();
       });
+    } finally {
+      _refreshing = false;
     }
   }
 
@@ -415,7 +420,7 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-class _ActionButton extends StatelessWidget {
+class _ActionButton extends StatefulWidget {
   const _ActionButton({
     required this.label,
     required this.icon,
@@ -427,25 +432,45 @@ class _ActionButton extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
+  State<_ActionButton> createState() => _ActionButtonState();
+}
+
+class _ActionButtonState extends State<_ActionButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      child: GlassContainer(
-        borderRadius: 18,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 18, color: AppColors.white90),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.labelSM(color: AppColors.white90),
+      onTap: widget.onTap,
+      onTapDown:
+          widget.onTap == null ? null : (_) => setState(() => _pressed = true),
+      onTapCancel:
+          widget.onTap == null ? null : () => setState(() => _pressed = false),
+      onTapUp:
+          widget.onTap == null ? null : (_) => setState(() => _pressed = false),
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedScale(
+        duration: GlassDecoration.motionFast,
+        curve: GlassDecoration.motionCurve,
+        scale: _pressed ? 0.975 : 1,
+        child: GlassContainer(
+          borderRadius: 18,
+          pressed: _pressed,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(widget.icon, size: 18, color: AppColors.white90),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  widget.label,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.labelSM(color: AppColors.white90),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -7,7 +7,7 @@ import '../theme.dart';
 /// per-screen `_ToggleIndicator` so Settings' boolean rows (previously a
 /// plain "ENABLED"/"DISABLED" text label) get the same real switch
 /// affordance as Alarms.
-class ToggleSwitch extends StatelessWidget {
+class ToggleSwitch extends StatefulWidget {
   const ToggleSwitch({
     super.key,
     required this.value,
@@ -20,50 +20,96 @@ class ToggleSwitch extends StatelessWidget {
   final String? semanticLabel;
 
   @override
+  State<ToggleSwitch> createState() => _ToggleSwitchState();
+}
+
+class _ToggleSwitchState extends State<ToggleSwitch> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    final indicator = AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: 44,
-      height: 26,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(13),
-        color: value
-            ? AppColors.white.withValues(alpha: 0.15)
-            : Colors.transparent,
-        border: Border.all(
-          color: value ? AppColors.white60 : AppColors.white20,
-          width: 0.8,
+    final indicator = AnimatedScale(
+      duration: GlassDecoration.motionFast,
+      curve: GlassDecoration.motionCurve,
+      scale: _pressed ? 0.96 : 1,
+      child: AnimatedContainer(
+        duration: GlassDecoration.motionMedium,
+        curve: GlassDecoration.motionCurve,
+        width: 48,
+        height: 28,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: widget.value
+              ? AppColors.white.withValues(alpha: 0.16)
+              : AppColors.white.withValues(alpha: 0.035),
+          border: Border.all(
+            color: widget.value ? AppColors.white60 : AppColors.white20,
+            width: 0.8,
+          ),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.white.withValues(alpha: widget.value ? 0.18 : 0.07),
+              Colors.transparent,
+            ],
+          ),
+          boxShadow: GlassDecoration.depth(
+            isActive: widget.value,
+            pressed: _pressed,
+          ),
         ),
-      ),
-      child: AnimatedAlign(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-        alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: value ? AppColors.white90 : AppColors.white20,
+        child: AnimatedAlign(
+          duration: GlassDecoration.motionMedium,
+          curve: GlassDecoration.motionCurve,
+          alignment:
+              widget.value ? Alignment.centerRight : Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: AnimatedContainer(
+              duration: GlassDecoration.motionMedium,
+              curve: GlassDecoration.motionCurve,
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.value ? AppColors.white90 : AppColors.white20,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    blurRadius: 7,
+                    offset: const Offset(0, 3),
+                  ),
+                  if (widget.value)
+                    BoxShadow(
+                      color: AppColors.white.withValues(alpha: 0.22),
+                      blurRadius: 12,
+                    ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
 
-    if (onChanged == null) {
-      return Semantics(toggled: value, label: semanticLabel, child: indicator);
+    if (widget.onChanged == null) {
+      return Semantics(
+        toggled: widget.value,
+        label: widget.semanticLabel,
+        child: indicator,
+      );
     }
 
     return Semantics(
       button: true,
-      toggled: value,
-      label: semanticLabel,
+      toggled: widget.value,
+      label: widget.semanticLabel,
       child: GestureDetector(
-        onTap: onChanged,
+        onTap: widget.onChanged,
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapCancel: () => setState(() => _pressed = false),
+        onTapUp: (_) => setState(() => _pressed = false),
         behavior: HitTestBehavior.opaque,
         child: indicator,
       ),

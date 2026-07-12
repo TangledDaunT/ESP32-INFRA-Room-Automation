@@ -23,28 +23,81 @@ class AppColors {
 class GlassDecoration {
   GlassDecoration._();
 
+  static const Curve motionCurve = Curves.easeOutCubic;
+  static const Duration motionFast = Duration(milliseconds: 160);
+  static const Duration motionMedium = Duration(milliseconds: 260);
+
+  static List<BoxShadow> depth({
+    bool isActive = false,
+    bool pressed = false,
+    Color color = AppColors.white,
+  }) {
+    if (pressed) {
+      return [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.42),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+        BoxShadow(
+          color: color.withValues(alpha: isActive ? 0.12 : 0.05),
+          blurRadius: 16,
+          spreadRadius: -2,
+        ),
+      ];
+    }
+
+    return [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.55),
+        blurRadius: isActive ? 28 : 18,
+        offset: const Offset(0, 14),
+      ),
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.38),
+        blurRadius: isActive ? 10 : 7,
+        offset: const Offset(0, 4),
+      ),
+      BoxShadow(
+        color: color.withValues(alpha: isActive ? 0.11 : 0.045),
+        blurRadius: isActive ? 30 : 18,
+        spreadRadius: isActive ? 1 : -2,
+      ),
+    ];
+  }
+
   /// Standard glass panel — used for relay buttons, slider backgrounds.
   static BoxDecoration panel({
     double borderRadius = 16,
     bool isActive = false,
+    bool pressed = false,
   }) {
     return BoxDecoration(
       borderRadius: BorderRadius.circular(borderRadius),
-      color: isActive ? AppColors.white10 : AppColors.glassFill,
+      color: pressed
+          ? AppColors.white05
+          : isActive
+              ? AppColors.white10
+              : AppColors.glassFill,
       border: Border.all(
-        color: isActive ? AppColors.white30 : AppColors.glassBorder,
+        color: pressed
+            ? AppColors.white20
+            : isActive
+                ? AppColors.white30
+                : AppColors.glassBorder,
         width: 0.5,
       ),
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          isActive ? AppColors.white10 : AppColors.glassHighlight,
+          isActive ? AppColors.white20 : AppColors.glassHighlight,
           Colors.transparent,
-          isActive ? AppColors.white05 : AppColors.glassGlow,
+          isActive ? AppColors.white08 : AppColors.glassGlow,
         ],
         stops: const [0.0, 0.5, 1.0],
       ),
+      boxShadow: depth(isActive: isActive, pressed: pressed),
     );
   }
 
@@ -54,6 +107,14 @@ class GlassDecoration {
       borderRadius: BorderRadius.circular(borderRadius),
       color: AppColors.glassFill,
       border: Border.all(color: AppColors.glassBorder, width: 0.5),
+      boxShadow: depth().map((shadow) {
+        return BoxShadow(
+          color: shadow.color.withValues(alpha: 0.18),
+          blurRadius: shadow.blurRadius * 0.7,
+          spreadRadius: shadow.spreadRadius,
+          offset: shadow.offset,
+        );
+      }).toList(),
     );
   }
 
@@ -62,9 +123,14 @@ class GlassDecoration {
       {Color color = AppColors.white, double blur = 12}) {
     return [
       BoxShadow(
-        color: color.withValues(alpha: 0.08),
+        color: color.withValues(alpha: 0.12),
         blurRadius: blur,
         spreadRadius: 1,
+      ),
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.32),
+        blurRadius: 10,
+        offset: const Offset(0, 5),
       ),
     ];
   }

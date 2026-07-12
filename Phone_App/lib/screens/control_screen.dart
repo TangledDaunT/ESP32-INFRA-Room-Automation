@@ -8,6 +8,7 @@ import '../services/page_activity_controller.dart';
 import '../theme.dart';
 import '../widgets/brightness_slider.dart';
 import '../widgets/device_button.dart';
+import '../widgets/glass_container.dart';
 import '../widgets/speedometer_dial.dart';
 
 /// Landscape fullscreen dashboard — the main control surface.
@@ -102,226 +103,229 @@ class _ControlScreenState extends State<ControlScreen> {
             ),
             Expanded(
               child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              // ── LEFT: Strip brightness slider ─────────
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: BrightnessSlider(
-                  icon: Symbols.light_group,
-                  value: state.rgbBrightness.toDouble(),
-                  onChanged: (v) {
-                    _pingActivity();
-                    device.setRgbBrightness(v.round());
-                  },
-                ),
-              ),
-
-              const SizedBox(width: 16),
-
-              // ── CENTER: Dials + Relay buttons ─────────
-              Expanded(
-                child: Column(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
                   children: [
-                    // Top: Speedometer dials
+                    // ── LEFT: Strip brightness slider ─────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: BrightnessSlider(
+                        icon: Symbols.light_group,
+                        value: state.rgbBrightness.toDouble(),
+                        onChanged: (v) {
+                          _pingActivity();
+                          device.setRgbBrightness(v.round());
+                        },
+                      ),
+                    ),
+
+                    const SizedBox(width: 16),
+
+                    // ── CENTER: Dials + Relay buttons ─────────
                     Expanded(
-                      flex: 5,
-                      child: Row(
+                      child: Column(
                         children: [
-                          // Lux dial
+                          // Top: Speedometer dials
                           Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: RepaintBoundary(
-                                child: SpeedometerDial(
-                                  value: state.luxValue,
-                                  maxValue: 700,
-                                  label: 'LUX',
-                                  icon: Symbols.light_mode,
-                                  unit: 'LX',
-                                  statusLabel: _luxLabel(state.luxValue),
-                                  statusColor: _luxColor(state.luxValue),
+                            flex: 5,
+                            child: Row(
+                              children: [
+                                // Lux dial
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4),
+                                    child: RepaintBoundary(
+                                      child: SpeedometerDial(
+                                        value: state.luxValue,
+                                        maxValue: 700,
+                                        label: 'LUX',
+                                        icon: Symbols.light_mode,
+                                        unit: 'LX',
+                                        statusLabel: _luxLabel(state.luxValue),
+                                        statusColor: _luxColor(state.luxValue),
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                // Smoke dial
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4),
+                                    child: RepaintBoundary(
+                                      child: SpeedometerDial(
+                                        value: state.smokeValue,
+                                        maxValue: 3000,
+                                        label: 'PPM',
+                                        icon: Symbols.detector_smoke,
+                                        unit: 'PPM',
+                                        warningThreshold: 2800,
+                                        statusLabel:
+                                            _smokeLabel(state.smokeValue),
+                                        statusColor:
+                                            _smokeColor(state.smokeValue),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          // Smoke dial
+
+                          const SizedBox(height: 4),
+
+                          // Bottom: 2×2 relay grid + settings
                           Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: RepaintBoundary(
-                                child: SpeedometerDial(
-                                  value: state.smokeValue,
-                                  maxValue: 3000,
-                                  label: 'PPM',
-                                  icon: Symbols.detector_smoke,
-                                  unit: 'PPM',
-                                  warningThreshold: 2800,
-                                  statusLabel: _smokeLabel(state.smokeValue),
-                                  statusColor: _smokeColor(state.smokeValue),
+                            flex: 4,
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(3),
+                                          child: DeviceButton(
+                                            icon: Symbols.mode_fan,
+                                            isOn: state.fanOn,
+                                            semanticLabel: 'Fan',
+                                            onTap: () {
+                                              _pingActivity();
+                                              device.setFan(!state.fanOn);
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(3),
+                                          child: DeviceButton(
+                                            icon: Symbols.lightbulb,
+                                            isOn: state.lightOn,
+                                            semanticLabel: 'Light',
+                                            onTap: () {
+                                              _pingActivity();
+                                              device.setLight(!state.lightOn);
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(3),
+                                          child: DeviceButton(
+                                            icon: Symbols.power,
+                                            isOn: state.socketOn,
+                                            semanticLabel: 'Socket',
+                                            onTap: () {
+                                              _pingActivity();
+                                              device.setSocket(!state.socketOn);
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(3),
+                                          child: DeviceButton(
+                                            icon: Symbols.palette,
+                                            isOn: state.rgbOn,
+                                            semanticLabel: 'RGB',
+                                            onTap: () {
+                                              _pingActivity();
+                                              device.setRgb(!state.rgbOn);
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Settings, Alarm, Music, Friday, & Sleep buttons
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    _BottomActionButton(
+                                      icon: Symbols.motion_photos_on,
+                                      label: 'MOTION',
+                                      onTap: () async {
+                                        final activity = context
+                                            .read<PageActivityController>();
+                                        activity.pause();
+                                        await Navigator.of(context)
+                                            .pushNamed('/motion_feed')
+                                            .then((_) {
+                                          if (mounted) activity.resume();
+                                        });
+                                      },
+                                    ),
+                                    _BottomActionButton(
+                                      icon: Symbols.settings,
+                                      label: 'SETTINGS',
+                                      onTap: _openSettings,
+                                    ),
+                                    _BottomActionButton(
+                                      icon: Symbols.alarm,
+                                      label: 'ALARMS',
+                                      onTap: () {
+                                        final activity = context
+                                            .read<PageActivityController>();
+                                        activity.pause();
+                                        Navigator.of(context)
+                                            .pushNamed('/alarms')
+                                            .then((_) {
+                                          if (mounted) activity.resume();
+                                        });
+                                      },
+                                    ),
+                                    _BottomActionButton(
+                                      icon: Symbols.history,
+                                      label: 'LOGS',
+                                      onTap: () {
+                                        final activity = context
+                                            .read<PageActivityController>();
+                                        activity.pause();
+                                        Navigator.of(context)
+                                            .pushNamed('/activity')
+                                            .then((_) {
+                                          if (mounted) activity.resume();
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                    const SizedBox(height: 4),
+                    const SizedBox(width: 16),
 
-                    // Bottom: 2×2 relay grid + settings
-                    Expanded(
-                      flex: 4,
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(3),
-                                    child: DeviceButton(
-                                      icon: Symbols.mode_fan,
-                                      isOn: state.fanOn,
-                                      semanticLabel: 'Fan',
-                                      onTap: () {
-                                        _pingActivity();
-                                        device.setFan(!state.fanOn);
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(3),
-                                    child: DeviceButton(
-                                      icon: Symbols.lightbulb,
-                                      isOn: state.lightOn,
-                                      semanticLabel: 'Light',
-                                      onTap: () {
-                                        _pingActivity();
-                                        device.setLight(!state.lightOn);
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(3),
-                                    child: DeviceButton(
-                                      icon: Symbols.power,
-                                      isOn: state.socketOn,
-                                      semanticLabel: 'Socket',
-                                      onTap: () {
-                                        _pingActivity();
-                                        device.setSocket(!state.socketOn);
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(3),
-                                    child: DeviceButton(
-                                      icon: Symbols.palette,
-                                      isOn: state.rgbOn,
-                                      semanticLabel: 'RGB',
-                                      onTap: () {
-                                        _pingActivity();
-                                        device.setRgb(!state.rgbOn);
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Settings, Alarm, Music, Friday, & Sleep buttons
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _BottomActionButton(
-                                icon: Symbols.motion_photos_on,
-                                label: 'MOTION',
-                                onTap: () async {
-                                  final activity =
-                                      context.read<PageActivityController>();
-                                  activity.pause();
-                                  await Navigator.of(context)
-                                      .pushNamed('/motion_feed')
-                                      .then((_) {
-                                    if (mounted) activity.resume();
-                                  });
-                                },
-                              ),
-                              _BottomActionButton(
-                                icon: Symbols.settings,
-                                label: 'SETTINGS',
-                                onTap: _openSettings,
-                              ),
-                              _BottomActionButton(
-                                icon: Symbols.alarm,
-                                label: 'ALARMS',
-                                onTap: () {
-                                  final activity =
-                                      context.read<PageActivityController>();
-                                  activity.pause();
-                                  Navigator.of(context)
-                                      .pushNamed('/alarms')
-                                      .then((_) {
-                                    if (mounted) activity.resume();
-                                  });
-                                },
-                              ),
-                              _BottomActionButton(
-                                icon: Symbols.history,
-                                label: 'LOGS',
-                                onTap: () {
-                                  final activity =
-                                      context.read<PageActivityController>();
-                                  activity.pause();
-                                  Navigator.of(context)
-                                      .pushNamed('/activity')
-                                      .then((_) {
-                                    if (mounted) activity.resume();
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                        ],
+                    // ── RIGHT: Backup brightness slider ───────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: BrightnessSlider(
+                        icon: Symbols.flashlight_on,
+                        value: state.backupBrightness.toDouble(),
+                        onChanged: (v) {
+                          _pingActivity();
+                          device.setBackupBrightness(v.round());
+                        },
                       ),
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(width: 16),
-
-              // ── RIGHT: Backup brightness slider ───────
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: BrightnessSlider(
-                  icon: Symbols.flashlight_on,
-                  value: state.backupBrightness.toDouble(),
-                  onChanged: (v) {
-                    _pingActivity();
-                    device.setBackupBrightness(v.round());
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
             ),
           ],
         ),
@@ -333,10 +337,9 @@ class _ControlScreenState extends State<ControlScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
-
 }
 
-class _BottomActionButton extends StatelessWidget {
+class _BottomActionButton extends StatefulWidget {
   const _BottomActionButton({
     required this.icon,
     required this.label,
@@ -348,38 +351,57 @@ class _BottomActionButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_BottomActionButton> createState() => _BottomActionButtonState();
+}
+
+class _BottomActionButtonState extends State<_BottomActionButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     const color = AppColors.white60;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTapUp: (_) => setState(() => _pressed = false),
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: color,
-              weight: 300,
+      child: AnimatedScale(
+        duration: GlassDecoration.motionFast,
+        curve: GlassDecoration.motionCurve,
+        scale: _pressed ? 0.96 : 1,
+        child: GlassContainer(
+          borderRadius: 18,
+          pressed: _pressed,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 58, minHeight: 42),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  widget.icon,
+                  size: 19,
+                  color: color,
+                  weight: 300,
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  widget.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.labelSM(color: color),
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: AppTextStyles.labelSM(color: color),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
-
-
 
 // ── Clap detection visual feedback ──────────────────────────
 class _ClapFeedbackOverlay extends StatelessWidget {

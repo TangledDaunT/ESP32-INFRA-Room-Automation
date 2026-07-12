@@ -98,65 +98,106 @@ class _BrightnessSliderState extends State<BrightnessSlider> {
                 ),
                 // The track
                 Expanded(
-                  child: Container(
-                    width: 32,
-                    decoration: GlassDecoration.bar(borderRadius: 16),
-                    child: Stack(
-                      alignment: Alignment.bottomCenter,
-                      children: [
-                        // Filled portion
-                        AnimatedContainer(
-                          duration: _dragging
-                              ? Duration.zero
-                              : const Duration(milliseconds: 150),
-                          curve: Curves.easeOut,
-                          width: 32,
-                          height: filledHeight.clamp(0, trackHeight),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [
-                                AppColors.white
-                                    .withValues(alpha: 0.15 + fraction * 0.15),
-                                AppColors.white.withValues(alpha: 0.05),
-                              ],
+                  child: AnimatedScale(
+                    duration:
+                        _dragging ? Duration.zero : GlassDecoration.motionFast,
+                    curve: GlassDecoration.motionCurve,
+                    scale: _dragging ? 1.035 : 1,
+                    child: Container(
+                      width: 34,
+                      decoration: GlassDecoration.bar(borderRadius: 18),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Stack(
+                          alignment: Alignment.bottomCenter,
+                          children: [
+                            Positioned.fill(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                    colors: [
+                                      AppColors.white.withValues(alpha: 0.06),
+                                      Colors.transparent,
+                                      Colors.black.withValues(alpha: 0.18),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
-                            border: Border.all(
-                              color: AppColors.white
-                                  .withValues(alpha: 0.1 + fraction * 0.1),
-                              width: 0.5,
+                            // Filled portion
+                            AnimatedContainer(
+                              duration: _dragging
+                                  ? Duration.zero
+                                  : GlassDecoration.motionFast,
+                              curve: GlassDecoration.motionCurve,
+                              width: 34,
+                              height: filledHeight.clamp(0, trackHeight),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                gradient: LinearGradient(
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                  colors: [
+                                    AppColors.white.withValues(
+                                      alpha: 0.18 + fraction * 0.16,
+                                    ),
+                                    AppColors.white.withValues(alpha: 0.06),
+                                  ],
+                                ),
+                                border: Border.all(
+                                  color: AppColors.white.withValues(
+                                    alpha: 0.12 + fraction * 0.12,
+                                  ),
+                                  width: 0.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.white.withValues(
+                                      alpha: fraction * 0.12,
+                                    ),
+                                    blurRadius: 18,
+                                    spreadRadius: -2,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
-                        // Thumb indicator at top of filled portion
-                        Positioned(
-                          bottom: (filledHeight - 2).clamp(0, trackHeight),
-                          child: AnimatedContainer(
-                            duration: _dragging
-                                ? Duration.zero
-                                : const Duration(milliseconds: 150),
-                            width: 28,
-                            height: 3,
-                            decoration: BoxDecoration(
-                              color: AppColors.white
-                                  .withValues(alpha: _dragging ? 0.9 : 0.6),
-                              borderRadius: BorderRadius.circular(2),
-                              boxShadow: _dragging
-                                  ? [
-                                      BoxShadow(
-                                        color: AppColors.white
-                                            .withValues(alpha: 0.15),
-                                        blurRadius: 8,
-                                        spreadRadius: 1,
+                            // Thumb indicator at top of filled portion
+                            Positioned(
+                              bottom: (filledHeight - 2).clamp(0, trackHeight),
+                              child: AnimatedContainer(
+                                duration: _dragging
+                                    ? Duration.zero
+                                    : GlassDecoration.motionFast,
+                                width: _dragging ? 31 : 27,
+                                height: _dragging ? 4 : 3,
+                                decoration: BoxDecoration(
+                                  color: AppColors.white.withValues(
+                                    alpha: _dragging ? 0.95 : 0.68,
+                                  ),
+                                  borderRadius: BorderRadius.circular(3),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.white.withValues(
+                                        alpha: _dragging ? 0.22 : 0.12,
                                       ),
-                                    ]
-                                  : null,
+                                      blurRadius: _dragging ? 14 : 8,
+                                      spreadRadius: _dragging ? 1 : 0,
+                                    ),
+                                    BoxShadow(
+                                      color:
+                                          Colors.black.withValues(alpha: 0.45),
+                                      blurRadius: 5,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
