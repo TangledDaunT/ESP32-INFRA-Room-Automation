@@ -159,6 +159,7 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _spotify.stop();
+      unawaited(stopMotionDetection());
     }
   }
 
@@ -500,8 +501,13 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
     _wakeup.updateSettings(settings);
     _clap.updateSettings(settings.toJson());
     _spotify.updateSettings(settings);
+    _motion.updateSettings(settings);
     _alarmService?.updateSettings(settings);
     await _activityLog.updateSettings(settings);
+
+    if (!settings.motionDetectEnabled && _state.motionDetectActive) {
+      await stopMotionDetection();
+    }
 
     notifyListeners();
   }

@@ -12,7 +12,8 @@ class ControlPageIndex {
   static const control = 0;
   static const macControl = 1;
   static const macHub = 2;
-  static const macStatus = 3;
+  static const macPlayback = 3;
+  static const macStatus = 4;
 }
 
 /// Owns the single idle-timeout timer shared by every page in the
@@ -27,7 +28,8 @@ class ControlPageIndex {
 /// here — reset by activity anywhere in the deck, paused while a modal
 /// sub-page (Settings/Alarms/Logs) is on top — fixes that, and doubles as
 /// the visibility signal pages use to pause their own network polling.
-class PageActivityController extends ChangeNotifier with WidgetsBindingObserver {
+class PageActivityController extends ChangeNotifier
+    with WidgetsBindingObserver {
   PageActivityController({
     required this.getTimeoutSeconds,
     required this.onIdle,

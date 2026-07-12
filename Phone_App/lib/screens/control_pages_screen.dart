@@ -6,9 +6,10 @@ import '../services/page_activity_controller.dart';
 import 'control_screen.dart';
 import 'mac_control_screen.dart';
 import 'mac_media_screen.dart';
+import 'mac_playback_screen.dart';
 import 'mac_status_screen.dart';
 
-/// Swipeable deck of the four "live dashboard" pages.
+/// Swipeable deck of the live dashboard pages.
 ///
 /// `PageView` keeps every child mounted regardless of which one is
 /// currently visible, so idle-timeout and background polling must be
@@ -62,6 +63,7 @@ class _ControlPagesScreenState extends State<ControlPagesScreen> {
             ControlScreen(),
             MacControlScreen(),
             MacMediaScreen(),
+            MacPlaybackScreen(),
             MacStatusScreen(),
           ],
         ),

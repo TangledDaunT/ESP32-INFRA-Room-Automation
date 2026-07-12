@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -15,6 +17,7 @@ class MotionFeedScreen extends StatefulWidget {
 
 class _MotionFeedScreenState extends State<MotionFeedScreen> {
   CameraController? _previewController;
+  DeviceProvider? _device;
   bool _cameraReady = false;
   bool _starting = true;
 
@@ -26,6 +29,7 @@ class _MotionFeedScreenState extends State<MotionFeedScreen> {
 
   Future<void> _initCamera() async {
     final device = context.read<DeviceProvider>();
+    _device = device;
     await device.startMotionDetection();
     if (!mounted) return;
 
@@ -49,9 +53,7 @@ class _MotionFeedScreenState extends State<MotionFeedScreen> {
 
   @override
   void dispose() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DeviceProvider>().stopMotionDetection();
-    });
+    unawaited(_device?.stopMotionDetection());
     _previewController = null;
     super.dispose();
   }
@@ -146,7 +148,7 @@ class _TopBar extends StatelessWidget {
           const Spacer(),
           Row(
             children: [
-              Icon(
+              const Icon(
                 Symbols.videocam,
                 size: 14,
                 color: AppColors.white40,
@@ -192,7 +194,7 @@ class _Placeholder extends StatelessWidget {
     final status = context.watch<DeviceProvider>().state.motionStatus ?? 'IDLE';
     return Column(
       children: [
-        Icon(
+        const Icon(
           Symbols.videocam_off,
           size: 64,
           color: AppColors.white10,
@@ -239,7 +241,7 @@ class _BottomControls extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              const Icon(
                 Symbols.stop_circle,
                 size: 20,
                 weight: 300,

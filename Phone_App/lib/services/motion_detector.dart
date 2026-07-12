@@ -23,12 +23,13 @@ class MotionDetector {
   CameraController? _controller;
   bool _isActive = false;
   bool _disposed = false;
+  bool _captureInFlight = false;
   Timer? _analysisTimer;
 
   Uint8List? _prevGrid;
   DateTime? _lastDetectionTime;
 
-  final AppSettings _settings;
+  AppSettings _settings;
   final MotionStatusCallback? onStatusChanged;
   final MotionDetectedCallback? onMotionDetected;
   final MotionErrorCallback? onError;
@@ -43,6 +44,10 @@ class MotionDetector {
     this.onMotionDetected,
     this.onError,
   }) : _settings = settings;
+
+  void updateSettings(AppSettings settings) {
+    _settings = settings;
+  }
 
   Future<bool> start() async {
     if (_isActive) return true;
@@ -83,6 +88,7 @@ class MotionDetector {
       _isActive = true;
       _prevGrid = null;
       _lastDetectionTime = null;
+      _captureInFlight = false;
       _notifyStatus('STANDBY');
 
       _analysisTimer = Timer.periodic(
@@ -107,10 +113,20 @@ class MotionDetector {
     _isActive = false;
     _analysisTimer?.cancel();
     _analysisTimer = null;
-    await _controller?.stopImageStream();
-    await _controller?.dispose();
+    final controller = _controller;
     _controller = null;
+    if (controller != null) {
+      try {
+        if (controller.value.isStreamingImages) {
+          await controller.stopImageStream();
+        }
+      } on Object {
+        // Camera teardown can race app lifecycle callbacks; continue disposal.
+      }
+      await controller.dispose();
+    }
     _prevGrid = null;
+    _captureInFlight = false;
   }
 
   void _onFrameAvailable(CameraImage image) {
@@ -120,14 +136,16 @@ class MotionDetector {
       final grid = _buildGridFromYPlane(image);
       if (grid == null) return;
 
-      if (_prevGrid == null || _lastDetectionTime == null) {
+      if (_prevGrid == null) {
         _prevGrid = grid;
         return;
       }
 
       final now = DateTime.now();
-      final diffSinceLast = now.difference(_lastDetectionTime!);
-      if (diffSinceLast.inMilliseconds < _settings.motionDebounceMs) {
+      final lastDetectionTime = _lastDetectionTime;
+      if (lastDetectionTime != null &&
+          now.difference(lastDetectionTime).inMilliseconds <
+              _settings.motionDebounceMs) {
         _prevGrid = grid;
         return;
       }
@@ -211,9 +229,11 @@ class MotionDetector {
 
   Future<void> _captureAndSend() async {
     if (!_isActive || _disposed) return;
+    if (_captureInFlight) return;
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
 
+    _captureInFlight = true;
     try {
       final file = await controller.takePicture();
       if (_disposed) return;
@@ -224,6 +244,8 @@ class MotionDetector {
       await _uploadToPushover(bytes);
     } on Object catch (e) {
       _reportError('Capture failed: $e');
+    } finally {
+      _captureInFlight = false;
     }
   }
 
