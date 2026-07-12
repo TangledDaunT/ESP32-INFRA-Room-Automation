@@ -55,6 +55,9 @@ class MacService {
         final response = await http
             .get(Uri.parse('$base$path'))
             .timeout(const Duration(seconds: 4));
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          continue;
+        }
         final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) return decoded;
       } catch (_) {}
@@ -68,9 +71,12 @@ class MacService {
         final response = await http
             .get(Uri.parse('$base$path'))
             .timeout(const Duration(seconds: 4));
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          continue;
+        }
         final decoded = jsonDecode(response.body);
         if (decoded is List) {
-            return decoded
+          return decoded
               .whereType<Map>()
               .map((item) => Map<String, dynamic>.from(item))
               .toList();
@@ -93,6 +99,9 @@ class MacService {
               body: jsonEncode(body ?? const {}),
             )
             .timeout(const Duration(seconds: 15));
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          continue;
+        }
         final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) return decoded;
       } catch (_) {}
