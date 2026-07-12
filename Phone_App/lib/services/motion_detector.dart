@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 
 import '../models/app_settings.dart';
 
@@ -24,6 +25,7 @@ class MotionDetector {
   bool _isActive = false;
   bool _disposed = false;
   bool _captureInFlight = false;
+  bool _streamRunning = false;
   Timer? _analysisTimer;
 
   Uint8List? _prevGrid;
@@ -54,22 +56,36 @@ class MotionDetector {
     if (_disposed) return false;
 
     try {
-      final cameras = await availableCameras();
-      CameraDescription? frontCamera;
-      for (final cam in cameras) {
-        if (cam.lensDirection == CameraLensDirection.front) {
-          frontCamera = cam;
-          break;
+      if (Platform.isAndroid) {
+        var permission = await Permission.camera.status;
+        if (!permission.isGranted) {
+          permission = await Permission.camera.request();
+        }
+        if (!permission.isGranted) {
+          _reportError(permission.isPermanentlyDenied
+              ? 'Camera permission is blocked. Enable it in Android settings.'
+              : 'Camera permission was not granted.');
+          return false;
         }
       }
 
-      if (frontCamera == null) {
-        _reportError('No front camera found');
+      final cameras = await availableCameras();
+      CameraDescription? selectedCamera;
+      for (final cam in cameras) {
+        if (cam.lensDirection == CameraLensDirection.back) {
+          selectedCamera = cam;
+          break;
+        }
+      }
+      selectedCamera ??= cameras.isNotEmpty ? cameras.first : null;
+
+      if (selectedCamera == null) {
+        _reportError('No camera found');
         return false;
       }
 
       _controller = CameraController(
-        frontCamera,
+        selectedCamera,
         ResolutionPreset.low,
         enableAudio: false,
         imageFormatGroup: Platform.isAndroid
@@ -84,8 +100,9 @@ class MotionDetector {
         return false;
       }
 
-      await _controller!.startImageStream(_onFrameAvailable);
       _isActive = true;
+      await _controller!.startImageStream(_onFrameAvailable);
+      _streamRunning = true;
       _prevGrid = null;
       _lastDetectionTime = null;
       _captureInFlight = false;
@@ -127,6 +144,7 @@ class MotionDetector {
     }
     _prevGrid = null;
     _captureInFlight = false;
+    _streamRunning = false;
   }
 
   void _onFrameAvailable(CameraImage image) {
@@ -235,16 +253,40 @@ class MotionDetector {
 
     _captureInFlight = true;
     try {
+      // Android cannot take a still photo while the YUV stream is active.
+      // Pause it only for the capture, then resume monitoring immediately.
+      if (_streamRunning) {
+        await controller.stopImageStream();
+        _streamRunning = false;
+      }
       final file = await controller.takePicture();
       if (_disposed) return;
 
       final bytes = await file.readAsBytes();
       if (_disposed || bytes.isEmpty) return;
 
+      if (_isActive) {
+        await controller.startImageStream(_onFrameAvailable);
+        _streamRunning = true;
+      }
+
+      onMotionDetected?.call(bytes);
+      if (_settings.motionDetectUserKey.trim().isEmpty ||
+          _settings.motionDetectApiToken.trim().isEmpty) {
+        return;
+      }
       await _uploadToPushover(bytes);
     } on Object catch (e) {
       _reportError('Capture failed: $e');
     } finally {
+      if (_isActive && !_disposed && !_streamRunning) {
+        try {
+          await controller.startImageStream(_onFrameAvailable);
+          _streamRunning = true;
+        } on Object {
+          // The next start will retry the image stream.
+        }
+      }
       _captureInFlight = false;
     }
   }
@@ -270,9 +312,7 @@ class MotionDetector {
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
 
-      if (response.statusCode == 200 && onMotionDetected != null) {
-        onMotionDetected!(imageBytes);
-      } else if (response.statusCode != 200) {
+      if (response.statusCode != 200) {
         _reportError('Pushover rejected: ${response.statusCode}');
       }
     } on SocketException catch (_) {

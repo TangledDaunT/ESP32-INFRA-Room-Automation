@@ -168,9 +168,6 @@ class _MacMediaScreenState extends State<MacMediaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final macAgentUrl =
-        context.watch<SettingsProvider>().settings.macAgentBaseUrl;
-
     return Scaffold(
       backgroundColor: AppColors.black,
       body: SafeArea(
@@ -184,11 +181,6 @@ class _MacMediaScreenState extends State<MacMediaScreen> {
                   Text('MAC HUB',
                       style: AppTextStyles.labelLG(color: AppColors.white90)),
                   const Spacer(),
-                  Text(
-                    macAgentUrl.replaceFirst(RegExp(r'^https?://'), ''),
-                    style: AppTextStyles.labelSM(color: AppColors.white30),
-                  ),
-                  const SizedBox(width: 12),
                   IconButton(
                     onPressed: _loading ? null : () => _refresh(),
                     icon: const Icon(Symbols.refresh, size: 18),
@@ -197,27 +189,63 @@ class _MacMediaScreenState extends State<MacMediaScreen> {
               ),
               const SizedBox(height: 10),
               Expanded(
-                child: Column(
-                  children: [
-                    _buildStatusCard(),
-                    const SizedBox(height: 14),
-                    Expanded(
-                      child: Row(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 700 ||
+                        constraints.maxHeight < 560;
+                    if (compact) {
+                      return ListView(
                         children: [
-                          Expanded(child: _buildNotificationsCard()),
-                          const SizedBox(width: 14),
-                          Expanded(child: _buildCaptureCard()),
+                          _buildStatusCard(),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            height: 250,
+                            child: _buildNotificationsCard(),
+                          ),
+                          const SizedBox(height: 14),
+                          SizedBox(height: 300, child: _buildCaptureCard()),
+                          if (_message != null) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              _message!,
+                              style: AppTextStyles.labelSM(
+                                color: AppColors.white40,
+                              ),
+                            ),
+                          ],
                         ],
-                      ),
-                    ),
-                  ],
+                      );
+                    }
+
+                    return Column(
+                      children: [
+                        _buildStatusCard(),
+                        const SizedBox(height: 14),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Expanded(child: _buildNotificationsCard()),
+                              const SizedBox(width: 14),
+                              Expanded(child: _buildCaptureCard()),
+                            ],
+                          ),
+                        ),
+                        if (_message != null) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            _message!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.labelSM(
+                              color: AppColors.white40,
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
               ),
-              if (_message != null) ...[
-                const SizedBox(height: 10),
-                Text(_message!,
-                    style: AppTextStyles.labelSM(color: AppColors.white40)),
-              ],
             ],
           ),
         ),
@@ -230,32 +258,45 @@ class _MacMediaScreenState extends State<MacMediaScreen> {
     return GlassContainer(
       borderRadius: 24,
       padding: const EdgeInsets.all(18),
-      child: Row(
-        children: [
-          _StatusChip(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth < 520 ? 2 : 3;
+          const gap = 8.0;
+          final chipWidth =
+              (constraints.maxWidth - gap * (columns - 1)) / columns;
+          final chips = [
+            _StatusChip(
               label: 'AGENT',
-              value: status?.reachable == true ? 'ONLINE' : 'OFFLINE'),
-          const SizedBox(width: 12),
-          _StatusChip(
+              value: status?.reachable == true ? 'ONLINE' : 'OFFLINE',
+            ),
+            _StatusChip(
               label: 'BATTERY',
               value: status?.batteryPercent == null
                   ? '--'
-                  : '${status!.batteryPercent!.round()}%'),
-          const SizedBox(width: 12),
-          _StatusChip(label: 'WIFI', value: status?.wifiSsid ?? 'NO LINK'),
-          const SizedBox(width: 12),
-          _StatusChip(
+                  : '${status!.batteryPercent!.round()}%',
+            ),
+            _StatusChip(label: 'WIFI', value: status?.wifiSsid ?? 'NO LINK'),
+            _StatusChip(
               label: 'CPU',
-              value: '${(status?.cpuPercent ?? 0).toStringAsFixed(1)}%'),
-          const SizedBox(width: 12),
-          _StatusChip(
+              value: '${(status?.cpuPercent ?? 0).toStringAsFixed(1)}%',
+            ),
+            _StatusChip(
               label: 'MEM',
-              value: '${(status?.memoryPercent ?? 0).toStringAsFixed(1)}%'),
-          const SizedBox(width: 12),
-          _StatusChip(
+              value: '${(status?.memoryPercent ?? 0).toStringAsFixed(1)}%',
+            ),
+            _StatusChip(
               label: 'DISK',
-              value: '${(status?.diskPercent ?? 0).toStringAsFixed(1)}%'),
-        ],
+              value: '${(status?.diskPercent ?? 0).toStringAsFixed(1)}%',
+            ),
+          ];
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final chip in chips) SizedBox(width: chipWidth, child: chip),
+            ],
+          );
+        },
       ),
     );
   }
@@ -413,7 +454,12 @@ class _StatusChip extends StatelessWidget {
         children: [
           Text(label, style: AppTextStyles.labelSM(color: AppColors.white30)),
           const SizedBox(height: 4),
-          Text(value, style: AppTextStyles.bodyLG(color: AppColors.white90)),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodyLG(color: AppColors.white90),
+          ),
         ],
       ),
     );

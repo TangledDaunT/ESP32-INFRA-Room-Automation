@@ -116,8 +116,6 @@ class _MacStatusScreenState extends State<MacStatusScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final macAgentUrl =
-        context.watch<SettingsProvider>().settings.macAgentBaseUrl;
     final status = _status;
     final online = status?.reachable == true;
 
@@ -131,7 +129,6 @@ class _MacStatusScreenState extends State<MacStatusScreen> {
             children: [
               _Header(
                 online: online,
-                baseUrl: macAgentUrl,
                 loading: _loading,
                 refreshing: _refreshing,
                 onRefresh: _refresh,
@@ -174,21 +171,18 @@ class _MacStatusScreenState extends State<MacStatusScreen> {
 class _Header extends StatelessWidget {
   const _Header({
     required this.online,
-    required this.baseUrl,
     required this.loading,
     required this.refreshing,
     required this.onRefresh,
   });
 
   final bool online;
-  final String baseUrl;
   final bool loading;
   final bool refreshing;
   final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    final shortUrl = baseUrl.replaceFirst(RegExp(r'^https?://'), '');
     return Row(
       children: [
         Text(
@@ -198,16 +192,6 @@ class _Header extends StatelessWidget {
         const SizedBox(width: 10),
         _StatusDot(online: online),
         const Spacer(),
-        Flexible(
-          child: Text(
-            shortUrl,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-            style: AppTextStyles.labelSM(color: AppColors.white30),
-          ),
-        ),
-        const SizedBox(width: 8),
         SizedBox.square(
           dimension: 36,
           child: IconButton(
@@ -415,7 +399,7 @@ class _StatusBody extends StatelessWidget {
 
         if (!compact) return content;
         return SingleChildScrollView(
-          child: SizedBox(height: 330, child: content),
+          child: SizedBox(height: 360, child: content),
         );
       },
     );

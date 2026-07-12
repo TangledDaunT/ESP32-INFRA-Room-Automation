@@ -192,21 +192,31 @@ class _Placeholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = context.watch<DeviceProvider>().state.motionStatus ?? 'IDLE';
-    return Column(
-      children: [
-        const Icon(
-          Symbols.videocam_off,
-          size: 64,
-          color: AppColors.white10,
-          weight: 300,
-          opticalSize: 24,
-        ),
-        const SizedBox(height: 16),
-        Text(
-          status == 'MOTION' ? 'ALERT SENT' : 'WAITING FOR MOTION',
-          style: AppTextStyles.labelLG(color: AppColors.white60),
-        ),
-      ],
+    final isError = status == 'ERROR';
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isError ? Symbols.videocam_off : Symbols.motion_photos_paused,
+            size: 64,
+            color: isError ? const Color(0xFFFF7777) : AppColors.white10,
+            weight: 300,
+            opticalSize: 24,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            isError
+                ? 'CAMERA ACCESS NEEDED'
+                : status == 'MOTION'
+                    ? 'MOTION DETECTED'
+                    : 'WAITING FOR MOTION',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.labelLG(color: AppColors.white60),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -145,9 +145,6 @@ class _MacControlScreenState extends State<MacControlScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final macAgentUrl =
-        context.watch<SettingsProvider>().settings.macAgentBaseUrl;
-
     return Scaffold(
       backgroundColor: AppColors.black,
       body: GestureDetector(
@@ -177,13 +174,6 @@ class _MacControlScreenState extends State<MacControlScreen> {
                           size: 18,
                           color: AppColors.white30,
                           weight: 300,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          macAgentUrl.replaceFirst(RegExp(r'^https?://'), ''),
-                          style: AppTextStyles.labelSM(
-                            color: AppColors.white30,
-                          ),
                         ),
                         const SizedBox(width: 14),
                         _HeaderIconButton(

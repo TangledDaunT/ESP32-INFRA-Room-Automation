@@ -180,9 +180,6 @@ class _MacPlaybackScreenState extends State<MacPlaybackScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final macAgentUrl =
-        context.watch<SettingsProvider>().settings.macAgentBaseUrl;
-
     return Scaffold(
       backgroundColor: AppColors.black,
       body: GestureDetector(
@@ -202,16 +199,6 @@ class _MacPlaybackScreenState extends State<MacPlaybackScreen> {
                       style: AppTextStyles.labelLG(color: AppColors.white90),
                     ),
                     const Spacer(),
-                    Flexible(
-                      child: Text(
-                        macAgentUrl.replaceFirst(RegExp(r'^https?://'), ''),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.right,
-                        style: AppTextStyles.labelSM(color: AppColors.white30),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
                     SizedBox.square(
                       dimension: 36,
                       child: IconButton(
@@ -226,7 +213,8 @@ class _MacPlaybackScreenState extends State<MacPlaybackScreen> {
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final compact = constraints.maxWidth < 720;
+                      final stacked = constraints.maxWidth < 720 ||
+                          constraints.maxHeight < 440;
                       final controls = StaggeredReveal(
                         index: 0,
                         child: _PlaybackPanel(
@@ -249,12 +237,12 @@ class _MacPlaybackScreenState extends State<MacPlaybackScreen> {
                         ),
                       );
 
-                      if (compact) {
-                        return Column(
+                      if (stacked) {
+                        return ListView(
                           children: [
-                            Expanded(child: controls),
+                            SizedBox(height: 220, child: controls),
                             const SizedBox(height: 14),
-                            Expanded(child: volume),
+                            SizedBox(height: 250, child: volume),
                           ],
                         );
                       }
@@ -304,7 +292,7 @@ class _PlaybackPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassContainer(
       borderRadius: 24,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -407,7 +395,7 @@ class _VolumePanel extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           Slider(
             min: 0,
             max: 100,
@@ -415,12 +403,12 @@ class _VolumePanel extends StatelessWidget {
             onChanged: onVolumeChanged,
             onChangeEnd: onVolumeChangeEnd,
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 12),
           Text(
             'OUTPUT',
             style: AppTextStyles.labelSM(color: AppColors.white40),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 4),
           DropdownButtonFormField<String>(
             initialValue: selectedDeviceId,
             isExpanded: true,
@@ -497,7 +485,7 @@ class _MediaButtonState extends State<_MediaButton> {
               borderRadius: 18,
               isActive: widget.prominent,
               pressed: _pressed,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [

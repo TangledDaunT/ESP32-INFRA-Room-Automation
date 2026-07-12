@@ -241,7 +241,6 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
   // ── Motion Detection ──────────────────────────────────
 
   Future<bool> startMotionDetection() async {
-    if (!_settings.motionDetectEnabled) return false;
     if (_state.motionDetectActive) return true;
 
     final success = await _motion.start();
@@ -276,11 +275,12 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
     ));
     _activityLog.addAutomation(
       'Motion detected',
-      'Pushover alert sent with photo',
+      'Photo captured${_settings.motionDetectUserKey.trim().isEmpty ? '' : ' and alert sent'}',
     );
   }
 
   void _onMotionError(String error) {
+    _updateState(_state.copyWith(motionStatus: 'ERROR'));
     _activityLog.addAutomation('Motion detect error', error);
   }
 
