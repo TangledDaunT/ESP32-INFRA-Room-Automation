@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import psutil
 
@@ -169,6 +170,17 @@ class NotificationActionRequest(BaseModel):
 
 
 app = FastAPI(title="OpenClaw Mac Agent")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost",
+        "http://127.0.0.1",
+    ],
+    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):\d+$",
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
+)
 
 
 def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
