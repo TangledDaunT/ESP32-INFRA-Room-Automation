@@ -202,7 +202,7 @@ class AlarmScreen extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.black,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.zero,
           side: const BorderSide(color: AppColors.white20),
         ),
         title: Text('LABEL', style: AppTextStyles.labelLG(color: AppColors.white90)),
@@ -257,7 +257,7 @@ class _AlarmTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.zero,
           color: active
               ? AppColors.white.withValues(alpha: 0.04)
               : Colors.transparent,

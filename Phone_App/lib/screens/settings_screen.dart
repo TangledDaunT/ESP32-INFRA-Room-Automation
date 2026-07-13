@@ -33,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _pushoverApiTokenController;
 
   bool _showPassword = false;
+  bool _showMotionCredentials = false;
   bool _advancedExpanded = false;
   bool _topicsExpanded = false;
   bool _dirty = false;
@@ -418,6 +419,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSpace.xl),
+                      const _SectionHeader(title: 'MOTION DETECTION'),
+                      _buildMotionDetectionSettings(),
+                      const SizedBox(height: AppSpace.xl),
                       const _SectionHeader(title: 'ADVANCED'),
                       GestureDetector(
                         onTap: () {
@@ -661,88 +665,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               ),
                             ),
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                  left: 16, top: 20, bottom: 6),
-                              child: Text(
-                                'MOTION DETECT',
-                                style: AppTextStyles.labelSM().copyWith(
-                                  color: Colors.white.withValues(alpha: 0.35),
-                                  letterSpacing: 2.0,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                            SettingsRow(
-                              label: 'ENABLED',
-                              onTap: () {
-                                setState(() {
-                                  _draft.motionDetectEnabled =
-                                      !_draft.motionDetectEnabled;
-                                  _dirty = true;
-                                });
-                              },
-                              trailing: ToggleSwitch(
-                                  value: _draft.motionDetectEnabled),
-                            ),
-                            SettingsRow(
-                              label: 'PUSHOVER USER KEY',
-                              trailing: SizedBox(
-                                width: 180,
-                                child: _buildTextField(
-                                  controller: _pushoverUserKeyController,
-                                  obscureText: true,
-                                  onChanged: (value) {
-                                    _draft.motionDetectUserKey = value;
-                                    _markDirty();
-                                  },
-                                ),
-                              ),
-                            ),
-                            SettingsRow(
-                              label: 'PUSHOVER API TOKEN',
-                              trailing: SizedBox(
-                                width: 180,
-                                child: _buildTextField(
-                                  controller: _pushoverApiTokenController,
-                                  obscureText: true,
-                                  onChanged: (value) {
-                                    _draft.motionDetectApiToken = value;
-                                    _markDirty();
-                                  },
-                                ),
-                              ),
-                            ),
-                            SettingsRow(
-                              label: 'SENSITIVITY',
-                              onTap: () => _pickNumber(
-                                title: 'MOTION SENSITIVITY',
-                                initial: _draft.motionSensitivity.round(),
-                                min: 1,
-                                max: 20,
-                                onSelected: (value) =>
-                                    _draft.motionSensitivity = value.toDouble(),
-                                suffix: ' %',
-                              ),
-                              trailing: _buildTapValue(
-                                '${_draft.motionSensitivity.round()} %',
-                              ),
-                            ),
-                            SettingsRow(
-                              label: 'COOLDOWN',
-                              onTap: () => _pickNumber(
-                                title: 'MOTION COOLDOWN (s)',
-                                initial: (_draft.motionDebounceMs / 1000).round(),
-                                min: 5,
-                                max: 300,
-                                onSelected: (value) =>
-                                    _draft.motionDebounceMs = value * 1000,
-                                suffix: ' SEC',
-                              ),
-                              trailing: _buildTapValue(
-                                '${(_draft.motionDebounceMs / 1000).round()} SEC',
-                              ),
-                            ),
                             SettingsRow(
                               label: 'HIGH-PASS FILTER',
                               onTap: () {
@@ -960,20 +882,93 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildMotionDetectionSettings() {
+    return Column(
+      children: [
+        SettingsRow(
+          label: 'ENABLE CAMERA MONITORING',
+          onTap: () {
+            setState(() {
+              _draft.motionDetectEnabled = !_draft.motionDetectEnabled;
+              _dirty = true;
+            });
+          },
+          trailing: ToggleSwitch(
+            value: _draft.motionDetectEnabled,
+            semanticLabel: 'Enable camera motion monitoring',
+          ),
+        ),
+        SettingsRow(
+          label: 'PUSHOVER USER KEY',
+          trailing: _buildTextField(
+            controller: _pushoverUserKeyController,
+            obscureText: !_showMotionCredentials,
+            showVisibilityToggle: true,
+            onChanged: (value) {
+              _draft.motionDetectUserKey = value;
+              _markDirty();
+            },
+          ),
+        ),
+        SettingsRow(
+          label: 'PUSHOVER API TOKEN',
+          trailing: _buildTextField(
+            controller: _pushoverApiTokenController,
+            obscureText: !_showMotionCredentials,
+            showVisibilityToggle: true,
+            onChanged: (value) {
+              _draft.motionDetectApiToken = value;
+              _markDirty();
+            },
+          ),
+        ),
+        SettingsRow(
+          label: 'MOTION SENSITIVITY',
+          onTap: () => _pickNumber(
+            title: 'MOTION SENSITIVITY',
+            initial: _draft.motionSensitivity.round(),
+            min: 1,
+            max: 20,
+            onSelected: (value) => _draft.motionSensitivity = value.toDouble(),
+            suffix: ' CHANGED BLOCKS',
+          ),
+          trailing: _buildTapValue(
+            '${_draft.motionSensitivity.round()} BLOCKS',
+          ),
+        ),
+        SettingsRow(
+          label: 'ALERT COOLDOWN',
+          onTap: () => _pickNumber(
+            title: 'ALERT COOLDOWN',
+            initial: (_draft.motionDebounceMs / 1000).round(),
+            min: 5,
+            max: 300,
+            onSelected: (value) => _draft.motionDebounceMs = value * 1000,
+            suffix: ' SEC',
+          ),
+          trailing: _buildTapValue(
+            '${(_draft.motionDebounceMs / 1000).round()} SEC',
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTextField({
     required TextEditingController controller,
     required ValueChanged<String> onChanged,
     bool obscureText = false,
+    bool showVisibilityToggle = false,
     TextInputType keyboardType = TextInputType.text,
     List<TextInputFormatter>? inputFormatters,
   }) {
     return SizedBox(
-      width: 180,
+      width: 220,
       child: TextField(
         controller: controller,
         obscureText: obscureText,
         style: AppTextStyles.bodyLG(),
-        textAlign: TextAlign.right,
+        textAlign: TextAlign.start,
         cursorColor: AppColors.white90,
         cursorWidth: 1,
         keyboardType: keyboardType,
@@ -984,6 +979,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
           hintStyle: AppTextStyles.bodyLG(color: AppColors.white20),
           isDense: true,
           contentPadding: EdgeInsets.zero,
+          suffixIcon: showVisibilityToggle
+              ? IconButton(
+                  tooltip: _showMotionCredentials
+                      ? 'Hide credential'
+                      : 'Show credential',
+                  onPressed: () => setState(
+                      () => _showMotionCredentials = !_showMotionCredentials),
+                  icon: Icon(
+                    _showMotionCredentials
+                        ? Symbols.visibility_off
+                        : Symbols.visibility,
+                    size: 18,
+                    color: AppColors.white60,
+                  ),
+                )
+              : null,
         ),
         onChanged: onChanged,
       ),

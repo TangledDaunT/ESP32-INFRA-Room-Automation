@@ -410,7 +410,7 @@ class _MacMediaScreenState extends State<MacMediaScreen> {
             child: Container(
               decoration: GlassDecoration.panel(borderRadius: 20),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.zero,
                 child: _previewBase64 == null
                     ? Center(
                         child: Text('Preview appears here',

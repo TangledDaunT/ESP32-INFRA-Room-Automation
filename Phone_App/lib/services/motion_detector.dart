@@ -16,7 +16,11 @@ typedef MotionErrorCallback = void Function(String error);
 
 class MotionDetector {
   static const _pushoverUrl = 'https://api.pushover.net/1/messages.json';
+  // The camera stream may deliver 30+ frames/sec. Sampling the luminance grid
+  // at this cadence avoids doing CPU work for frames that cannot produce a new
+  // alert while retaining responsive room monitoring.
   static const _analysisIntervalMs = 1500;
+  static const _statusIntervalMs = 5000;
   static const _blockCols = 8;
   static const _blockRows = 6;
   static const _yDiffThreshold = 18;
@@ -30,6 +34,7 @@ class MotionDetector {
 
   Uint8List? _prevGrid;
   DateTime? _lastDetectionTime;
+  DateTime? _lastAnalysisTime;
 
   AppSettings _settings;
   final MotionStatusCallback? onStatusChanged;
@@ -105,11 +110,12 @@ class MotionDetector {
       _streamRunning = true;
       _prevGrid = null;
       _lastDetectionTime = null;
+      _lastAnalysisTime = null;
       _captureInFlight = false;
       _notifyStatus('STANDBY');
 
       _analysisTimer = Timer.periodic(
-        const Duration(milliseconds: _analysisIntervalMs),
+        const Duration(milliseconds: _statusIntervalMs),
         (_) => _runAnalysisTick(),
       );
 
@@ -143,6 +149,7 @@ class MotionDetector {
       await controller.dispose();
     }
     _prevGrid = null;
+    _lastAnalysisTime = null;
     _captureInFlight = false;
     _streamRunning = false;
   }
@@ -151,6 +158,14 @@ class MotionDetector {
     if (!_isActive || _disposed) return;
 
     try {
+      final now = DateTime.now();
+      final lastAnalysisTime = _lastAnalysisTime;
+      if (lastAnalysisTime != null &&
+          now.difference(lastAnalysisTime).inMilliseconds <
+              _analysisIntervalMs) {
+        return;
+      }
+      _lastAnalysisTime = now;
       final grid = _buildGridFromYPlane(image);
       if (grid == null) return;
 
@@ -159,7 +174,6 @@ class MotionDetector {
         return;
       }
 
-      final now = DateTime.now();
       final lastDetectionTime = _lastDetectionTime;
       if (lastDetectionTime != null &&
           now.difference(lastDetectionTime).inMilliseconds <

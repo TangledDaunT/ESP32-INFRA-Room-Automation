@@ -72,7 +72,7 @@ class _GlassActionButtonState extends State<GlassActionButton> {
             curve: GlassDecoration.motionCurve,
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(widget.borderRadius),
+              borderRadius: BorderRadius.zero,
               color: AppColors.white.withValues(alpha: active ? 0.15 : 0.08),
               border: Border.all(
                 color: glowColor.withValues(

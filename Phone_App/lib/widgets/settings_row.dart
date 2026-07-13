@@ -16,27 +16,43 @@ class SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final row = Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+    final labelWidget = Text(
+      label.toUpperCase(),
+      style: AppTextStyles.labelLG(color: AppColors.white90).copyWith(
+        fontSize: 12,
+        letterSpacing: 1.1,
+      ),
+    );
+
+    final row = LayoutBuilder(
+      builder: (context, constraints) {
+        // Stacking narrow rows prevents labels and credentials from competing
+        // for the same horizontal space on phones or with large text enabled.
+        final compact = constraints.maxWidth < 480;
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  label.toUpperCase(),
-                  style: AppTextStyles.labelLG(),
+              if (compact) ...[
+                labelWidget,
+                const SizedBox(height: AppSpace.sm),
+                Align(alignment: Alignment.centerRight, child: trailing),
+              ] else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(child: labelWidget),
+                    const SizedBox(width: AppSpace.md),
+                    Flexible(child: trailing),
+                  ],
                 ),
-              ),
-              const SizedBox(width: AppSpace.md),
-              Flexible(child: trailing),
+              const SizedBox(height: AppSpace.sm),
+              Container(height: 1, color: AppColors.white20),
             ],
           ),
-          const SizedBox(height: 2),
-          Container(height: 1, color: AppColors.white20),
-        ],
-      ),
+        );
+      },
     );
 
     if (onTap == null) {

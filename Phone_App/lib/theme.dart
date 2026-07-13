@@ -68,12 +68,12 @@ class GlassDecoration {
 
   /// Standard glass panel — used for relay buttons, slider backgrounds.
   static BoxDecoration panel({
-    double borderRadius = 16,
+    double borderRadius = 0,
     bool isActive = false,
     bool pressed = false,
   }) {
     return BoxDecoration(
-      borderRadius: BorderRadius.circular(borderRadius),
+      borderRadius: BorderRadius.zero,
       color: pressed
           ? AppColors.white05
           : isActive
@@ -102,9 +102,9 @@ class GlassDecoration {
   }
 
   /// Subtle glass for sliders / bars.
-  static BoxDecoration bar({double borderRadius = 20}) {
+  static BoxDecoration bar({double borderRadius = 0}) {
     return BoxDecoration(
-      borderRadius: BorderRadius.circular(borderRadius),
+      borderRadius: BorderRadius.zero,
       color: AppColors.glassFill,
       border: Border.all(color: AppColors.glassBorder, width: 0.5),
       boxShadow: depth().map((shadow) {

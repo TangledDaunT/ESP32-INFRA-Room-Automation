@@ -245,7 +245,7 @@ class _BottomControls extends StatelessWidget {
             foregroundColor: const Color(0xFFFF4444),
             side: const BorderSide(color: Color(0xFFFF4444), width: 1),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.zero,
             ),
           ),
           child: Row(

@@ -290,7 +290,7 @@ class _AlarmButton extends StatelessWidget {
         width: btnWidth,
         height: btnHeight,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.zero,
           color: isDestructive
               ? color.withValues(alpha: 0.12)
               : Colors.white.withValues(alpha: 0.06),

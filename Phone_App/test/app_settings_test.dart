@@ -14,4 +14,22 @@ void main() {
 
     expect(restored.macAgentBaseUrl, 'http://100.64.1.2:8765');
   });
+
+  test('persists motion detection alerts and tuning', () {
+    final settings = AppSettings(
+      motionDetectEnabled: true,
+      motionDetectUserKey: 'user-key',
+      motionDetectApiToken: 'api-token',
+      motionSensitivity: 12,
+      motionDebounceMs: 45000,
+    );
+
+    final restored = AppSettings.fromJsonString(settings.toJsonString());
+
+    expect(restored.motionDetectEnabled, isTrue);
+    expect(restored.motionDetectUserKey, 'user-key');
+    expect(restored.motionDetectApiToken, 'api-token');
+    expect(restored.motionSensitivity, 12);
+    expect(restored.motionDebounceMs, 45000);
+  });
 }

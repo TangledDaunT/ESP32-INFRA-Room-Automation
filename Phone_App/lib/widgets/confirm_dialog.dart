@@ -20,7 +20,7 @@ Future<bool> showConfirmDialog(
     builder: (ctx) => AlertDialog(
       backgroundColor: AppColors.black,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.zero,
         side: const BorderSide(color: AppColors.white20),
       ),
       title: Text(

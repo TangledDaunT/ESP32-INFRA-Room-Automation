@@ -127,7 +127,7 @@ class _LogTile extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(color: AppColors.white20, width: 0.8),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.zero,
         ),
         padding: const EdgeInsets.all(14),
         child: Row(

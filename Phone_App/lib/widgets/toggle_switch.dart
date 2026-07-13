@@ -38,7 +38,7 @@ class _ToggleSwitchState extends State<ToggleSwitch> {
         width: 48,
         height: 28,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.zero,
           color: widget.value
               ? AppColors.white.withValues(alpha: 0.16)
               : AppColors.white.withValues(alpha: 0.035),

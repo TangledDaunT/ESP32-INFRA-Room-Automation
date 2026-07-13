@@ -107,7 +107,7 @@ class _BrightnessSliderState extends State<BrightnessSlider> {
                       width: 34,
                       decoration: GlassDecoration.bar(borderRadius: 18),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.zero,
                         child: Stack(
                           alignment: Alignment.bottomCenter,
                           children: [
@@ -135,7 +135,7 @@ class _BrightnessSliderState extends State<BrightnessSlider> {
                               width: 34,
                               height: filledHeight.clamp(0, trackHeight),
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(18),
+                                borderRadius: BorderRadius.zero,
                                 gradient: LinearGradient(
                                   begin: Alignment.bottomCenter,
                                   end: Alignment.topCenter,
@@ -176,7 +176,7 @@ class _BrightnessSliderState extends State<BrightnessSlider> {
                                   color: AppColors.white.withValues(
                                     alpha: _dragging ? 0.95 : 0.68,
                                   ),
-                                  borderRadius: BorderRadius.circular(3),
+                                  borderRadius: BorderRadius.zero,
                                   boxShadow: [
                                     BoxShadow(
                                       color: AppColors.white.withValues(

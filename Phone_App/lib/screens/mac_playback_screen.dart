@@ -534,7 +534,7 @@ class _LevelMeter extends StatelessWidget {
                 duration: const Duration(milliseconds: 120),
                 height: 8 + (index % 6) * 5,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: BorderRadius.zero,
                   color: active ? AppColors.white60 : AppColors.white08,
                 ),
               ),

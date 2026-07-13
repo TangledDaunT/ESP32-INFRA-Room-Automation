@@ -30,7 +30,7 @@ class GlassContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(borderRadius);
+    final radius = BorderRadius.zero;
     return AnimatedContainer(
       duration: GlassDecoration.motionMedium,
       curve: GlassDecoration.motionCurve,

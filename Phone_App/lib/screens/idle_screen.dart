@@ -139,7 +139,7 @@ class _IdleScreenState extends State<IdleScreen>
         height: size * 0.9,
         decoration: BoxDecoration(
           shape: BoxShape.rectangle,
-          borderRadius: BorderRadius.circular(size),
+          borderRadius: BorderRadius.zero,
           gradient: RadialGradient(
             colors: [
               _blue.withValues(alpha: _glowOpacity.value),
@@ -351,7 +351,7 @@ class _IdleScreenState extends State<IdleScreen>
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.zero,
             child: track.albumArtUrl != null
                 ? Image.network(
                     track.albumArtUrl!,
@@ -389,7 +389,7 @@ class _IdleScreenState extends State<IdleScreen>
                 ),
                 const SizedBox(height: 6),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.zero,
                   child: LinearProgressIndicator(
                     // durationMs == 0 means Last.fm source (no progress data) → indeterminate
                     value: track.durationMs > 0 ? track.progressFraction : null,
@@ -418,7 +418,7 @@ class _IdleScreenState extends State<IdleScreen>
       height: 44,
       decoration: BoxDecoration(
         color: AppColors.glassFill,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.zero,
         border: Border.all(color: AppColors.glassBorder),
       ),
       child: const Icon(Symbols.music_note, color: AppColors.white40, size: 20),

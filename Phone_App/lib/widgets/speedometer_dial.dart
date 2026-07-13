@@ -115,7 +115,7 @@ class _SpeedometerDialState extends State<SpeedometerDial> {
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: (widget.statusColor ?? Colors.white).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: Text(
                       widget.statusLabel!,
