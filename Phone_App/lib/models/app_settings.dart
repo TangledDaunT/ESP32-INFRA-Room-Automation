@@ -86,6 +86,8 @@ class AppSettings {
   String motionDetectApiToken;
   double motionSensitivity;
   int motionDebounceMs;
+  bool motionUseFrontCamera;
+  bool motionStealthEnabled;
 
   AppSettings({
     // ── Real ESP32 HTTP endpoint ───────────────────────────────
@@ -146,6 +148,8 @@ class AppSettings {
     this.motionDetectApiToken = '',
     this.motionSensitivity = 15.0,
     this.motionDebounceMs = 30000,
+    this.motionUseFrontCamera = false,
+    this.motionStealthEnabled = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -203,6 +207,8 @@ class AppSettings {
         'motionDetectApiToken': motionDetectApiToken,
         'motionSensitivity': motionSensitivity,
         'motionDebounceMs': motionDebounceMs,
+        'motionUseFrontCamera': motionUseFrontCamera,
+        'motionStealthEnabled': motionStealthEnabled,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
@@ -267,6 +273,8 @@ class AppSettings {
         motionDetectApiToken: json['motionDetectApiToken'] ?? '',
         motionSensitivity: (json['motionSensitivity'] ?? 15.0).toDouble(),
         motionDebounceMs: json['motionDebounceMs'] ?? 30000,
+        motionUseFrontCamera: json['motionUseFrontCamera'] as bool? ?? false,
+        motionStealthEnabled: json['motionStealthEnabled'] as bool? ?? false,
       );
 
   String toJsonString() => jsonEncode(toJson());

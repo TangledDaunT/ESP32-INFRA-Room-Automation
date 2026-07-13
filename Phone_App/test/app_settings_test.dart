@@ -22,6 +22,8 @@ void main() {
       motionDetectApiToken: 'api-token',
       motionSensitivity: 12,
       motionDebounceMs: 45000,
+      motionUseFrontCamera: true,
+      motionStealthEnabled: true,
     );
 
     final restored = AppSettings.fromJsonString(settings.toJsonString());
@@ -31,5 +33,7 @@ void main() {
     expect(restored.motionDetectApiToken, 'api-token');
     expect(restored.motionSensitivity, 12);
     expect(restored.motionDebounceMs, 45000);
+    expect(restored.motionUseFrontCamera, isTrue);
+    expect(restored.motionStealthEnabled, isTrue);
   });
 }

@@ -8,7 +8,6 @@ import '../services/page_activity_controller.dart';
 import '../theme.dart';
 import '../widgets/brightness_slider.dart';
 import '../widgets/device_button.dart';
-import '../widgets/glass_container.dart';
 import '../widgets/speedometer_dial.dart';
 
 /// Landscape fullscreen dashboard — the main control surface.
@@ -56,13 +55,6 @@ Color _smokeColor(double ppm) {
 
 class _ControlScreenState extends State<ControlScreen> {
   void _pingActivity() => context.read<PageActivityController>().pingActivity();
-
-  Future<void> _openSettings() async {
-    final activity = context.read<PageActivityController>();
-    activity.pause();
-    await Navigator.of(context).pushNamed('/settings');
-    if (mounted) activity.resume();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -247,61 +239,6 @@ class _ControlScreenState extends State<ControlScreen> {
                                     ],
                                   ),
                                 ),
-
-                                // Settings, Alarm, Music, Friday, & Sleep buttons
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    _BottomActionButton(
-                                      icon: Symbols.motion_photos_on,
-                                      label: 'MOTION',
-                                      onTap: () async {
-                                        final activity = context
-                                            .read<PageActivityController>();
-                                        activity.pause();
-                                        await Navigator.of(context)
-                                            .pushNamed('/motion_feed')
-                                            .then((_) {
-                                          if (mounted) activity.resume();
-                                        });
-                                      },
-                                    ),
-                                    _BottomActionButton(
-                                      icon: Symbols.settings,
-                                      label: 'SETTINGS',
-                                      onTap: _openSettings,
-                                    ),
-                                    _BottomActionButton(
-                                      icon: Symbols.alarm,
-                                      label: 'ALARMS',
-                                      onTap: () {
-                                        final activity = context
-                                            .read<PageActivityController>();
-                                        activity.pause();
-                                        Navigator.of(context)
-                                            .pushNamed('/alarms')
-                                            .then((_) {
-                                          if (mounted) activity.resume();
-                                        });
-                                      },
-                                    ),
-                                    _BottomActionButton(
-                                      icon: Symbols.history,
-                                      label: 'LOGS',
-                                      onTap: () {
-                                        final activity = context
-                                            .read<PageActivityController>();
-                                        activity.pause();
-                                        Navigator.of(context)
-                                            .pushNamed('/activity')
-                                            .then((_) {
-                                          if (mounted) activity.resume();
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
                               ],
                             ),
                           ),
@@ -335,70 +272,6 @@ class _ControlScreenState extends State<ControlScreen> {
         visible: device.showClapIndicator,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-    );
-  }
-}
-
-class _BottomActionButton extends StatefulWidget {
-  const _BottomActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  State<_BottomActionButton> createState() => _BottomActionButtonState();
-}
-
-class _BottomActionButtonState extends State<_BottomActionButton> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    const color = AppColors.white60;
-
-    return GestureDetector(
-      onTap: widget.onTap,
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapCancel: () => setState(() => _pressed = false),
-      onTapUp: (_) => setState(() => _pressed = false),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedScale(
-        duration: GlassDecoration.motionFast,
-        curve: GlassDecoration.motionCurve,
-        scale: _pressed ? 0.96 : 1,
-        child: GlassContainer(
-          borderRadius: 18,
-          pressed: _pressed,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 58, minHeight: 42),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  widget.icon,
-                  size: 19,
-                  color: color,
-                  weight: 300,
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  widget.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.labelSM(color: color),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

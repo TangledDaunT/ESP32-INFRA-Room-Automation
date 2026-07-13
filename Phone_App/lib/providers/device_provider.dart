@@ -264,6 +264,17 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
     _logCommand('Motion Detect', 'OFF');
   }
 
+  Future<bool> switchMotionCamera() async {
+    if (!_state.motionDetectActive) return true;
+    _updateState(_state.copyWith(motionStatus: 'SWITCHING CAMERA'));
+    final success = await _motion.restart();
+    _updateState(_state.copyWith(
+      motionDetectActive: success,
+      motionStatus: success ? 'STANDBY' : 'ERROR',
+    ));
+    return success;
+  }
+
   void _onMotionStatusChanged(String status) {
     _updateState(_state.copyWith(motionStatus: status));
   }

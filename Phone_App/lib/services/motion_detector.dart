@@ -76,8 +76,11 @@ class MotionDetector {
 
       final cameras = await availableCameras();
       CameraDescription? selectedCamera;
+      final requestedLens = _settings.motionUseFrontCamera
+          ? CameraLensDirection.front
+          : CameraLensDirection.back;
       for (final cam in cameras) {
-        if (cam.lensDirection == CameraLensDirection.back) {
+        if (cam.lensDirection == requestedLens) {
           selectedCamera = cam;
           break;
         }
@@ -130,6 +133,13 @@ class MotionDetector {
   Future<void> stop() async {
     await _cleanup();
     _notifyStatus('IDLE');
+  }
+
+  /// Recreate the controller so an updated front/back camera preference takes
+  /// effect without leaving the monitor screen.
+  Future<bool> restart() async {
+    await _cleanup();
+    return start();
   }
 
   Future<void> _cleanup() async {

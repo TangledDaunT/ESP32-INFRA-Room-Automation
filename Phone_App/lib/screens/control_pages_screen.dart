@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/page_activity_controller.dart';
 import 'control_screen.dart';
+import 'home_tools_screen.dart';
 import 'mac_control_screen.dart';
 import 'mac_media_screen.dart';
 import 'mac_playback_screen.dart';
@@ -57,10 +58,10 @@ class _ControlPagesScreenState extends State<ControlPagesScreen> {
         child: PageView(
           controller: _pageController,
           physics: const BouncingScrollPhysics(),
-          reverse: true,
           onPageChanged: _activity.setPage,
           children: const [
             ControlScreen(),
+            HomeToolsScreen(),
             MacControlScreen(),
             MacMediaScreen(),
             MacPlaybackScreen(),
