@@ -46,6 +46,12 @@ class HomeToolsScreen extends StatelessWidget {
                   childAspectRatio: 2.2,
                   children: [
                     _ToolTile(
+                      icon: Symbols.auto_awesome,
+                      label: 'COMMAND CENTER',
+                      description: 'SCENES, SAFETY, RULES',
+                      onTap: () => _open(context, '/command_center'),
+                    ),
+                    _ToolTile(
                       icon: Symbols.motion_photos_on,
                       label: 'MOTION',
                       description: 'CAMERA MONITORING',

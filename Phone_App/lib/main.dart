@@ -15,6 +15,7 @@ import 'services/room_feature_service.dart';
 import 'screens/alarm_screen.dart';
 import 'screens/activity_log_screen.dart';
 import 'screens/control_pages_screen.dart';
+import 'screens/command_center_screen.dart';
 import 'screens/idle_screen.dart';
 import 'screens/motion_feed_screen.dart';
 import 'screens/settings_screen.dart';
@@ -157,6 +158,9 @@ class OpenClawApp extends StatelessWidget {
               settings: settings,
               child: const ActivityLogScreen(),
             );
+          case '/command_center':
+            return buildAppRoute(
+                settings: settings, child: const CommandCenterScreen());
           case '/':
           default:
             return buildAppRoute(
