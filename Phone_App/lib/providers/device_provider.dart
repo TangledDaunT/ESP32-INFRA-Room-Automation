@@ -400,9 +400,10 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   void _recordAndEvaluateFeatures() {
     final active = [_state.lightOn, _state.fanOn, _state.socketOn, _state.rgbOn]
-        .where((on) => on).length;
-    unawaited(_roomFeatures.record(RoomTelemetry(DateTime.now(), _state.luxValue,
-        _state.smokeValue, _state.presenceDetected, active)));
+        .where((on) => on)
+        .length;
+    unawaited(_roomFeatures.record(RoomTelemetry(DateTime.now(),
+        _state.luxValue, _state.smokeValue, _state.presenceDetected, active)));
     final now = DateTime.now();
     for (final rule in _roomFeatures.rules) {
       if (!rule.canRun(now)) continue;
@@ -414,7 +415,8 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
         RuleTrigger.macFocus => false,
       };
       if (met) {
-        final scene = _roomFeatures.scenes.where((s) => s.id == rule.sceneId).firstOrNull;
+        final scene =
+            _roomFeatures.scenes.where((s) => s.id == rule.sceneId).firstOrNull;
         if (scene != null) {
           applyScene(scene, source: 'Automation: ${rule.name}');
           unawaited(_roomFeatures.markRun(rule.id));
@@ -424,36 +426,64 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> applyScene(RoomScene scene, {String source = 'Scene'}) async {
-    setFan(scene.fan); setLight(scene.light); setSocket(scene.socket); setRgb(scene.rgb);
+    setFan(scene.fan);
+    setLight(scene.light);
+    setSocket(scene.socket);
+    setRgb(scene.rgb);
     setBackupBrightness(scene.backupBrightness);
     if (scene.fadeMs > 0) {
       setRgbBrightnessFast(scene.rgbBrightness, duration: scene.fadeMs);
       _updateState(_state.copyWith(rgbBrightness: scene.rgbBrightness));
-    } else { setRgbBrightness(scene.rgbBrightness); }
+    } else {
+      setRgbBrightness(scene.rgbBrightness);
+    }
     setAmbientProfile(scene.ambientProfile);
     if (scene.macFocus) {
       final result = await MacService(_settings.macAgentBaseUrl).open('vscode');
-      _activityLog.addAutomation('Mac focus', result.success ? 'VS Code opened' : 'Mac agent unavailable');
+      _activityLog.addAutomation('Mac focus',
+          result.success ? 'VS Code opened' : 'Mac agent unavailable');
     }
     _activityLog.addAutomation(source, '${scene.name} applied');
   }
 
   Future<void> emergencyAllOff() async {
-    _rampTimer?.cancel(); setAmbientProfile(null);
-    _updateState(_state.copyWith(fanOn: false, lightOn: false, socketOn: false, rgbOn: false, rgbBrightness: 0, backupBrightness: 0));
+    _rampTimer?.cancel();
+    setAmbientProfile(null);
+    _updateState(_state.copyWith(
+        fanOn: false,
+        lightOn: false,
+        socketOn: false,
+        rgbOn: false,
+        rgbBrightness: 0,
+        backupBrightness: 0));
     await _openclaw.setAllOff();
     _activityLog.addSystem('Emergency all off', 'All room outputs disabled');
   }
 
   void setAmbientProfile(AmbientProfile? profile) {
-    _ambientTimer?.cancel(); _ambientProfile = profile; _ambientTick = 0;
+    _ambientTimer?.cancel();
+    _ambientProfile = profile;
+    _ambientTick = 0;
     if (profile != null) {
       _ambientTimer = Timer.periodic(const Duration(milliseconds: 350), (_) {
         _ambientTick++;
         final phase = (_ambientTick % 18) / 18.0;
-        final base = switch (profile) { AmbientProfile.fireplace => 55, AmbientProfile.focus => 85, AmbientProfile.sunrise => 25, _ => 90 };
-        final amplitude = switch (profile) { AmbientProfile.pulse => 120, AmbientProfile.aurora => 75, AmbientProfile.fireplace => 35, AmbientProfile.sunrise => 120, AmbientProfile.focus => 15 };
-        final value = (base + amplitude * (0.5 + 0.5 * __sin(phase * 6.28318))).round().clamp(1, 255);
+        final base = switch (profile) {
+          AmbientProfile.fireplace => 55,
+          AmbientProfile.focus => 85,
+          AmbientProfile.sunrise => 25,
+          _ => 90
+        };
+        final amplitude = switch (profile) {
+          AmbientProfile.pulse => 120,
+          AmbientProfile.aurora => 75,
+          AmbientProfile.fireplace => 35,
+          AmbientProfile.sunrise => 120,
+          AmbientProfile.focus => 15
+        };
+        final value = (base + amplitude * (0.5 + 0.5 * __sin(phase * 6.28318)))
+            .round()
+            .clamp(1, 255);
         setRgbBrightnessFast(value);
       });
     }

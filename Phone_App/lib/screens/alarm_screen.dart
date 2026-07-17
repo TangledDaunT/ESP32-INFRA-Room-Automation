@@ -38,8 +38,8 @@ class AlarmScreen extends StatelessWidget {
                             behavior: HitTestBehavior.opaque,
                             child: Text(
                               '← ALARMS',
-                              style:
-                                  AppTextStyles.labelLG(color: AppColors.white90),
+                              style: AppTextStyles.labelLG(
+                                  color: AppColors.white90),
                             ),
                           ),
                           const Spacer(),
@@ -105,18 +105,21 @@ class AlarmScreen extends StatelessWidget {
                         ),
                       ] else ...[
                         // ── Alarm list ───────────────────────
-                        ...alarms.asMap().entries.map((entry) => StaggeredReveal(
-                              index: entry.key,
-                              child: _AlarmTile(
-                                alarm: entry.value,
-                                onToggle: () =>
-                                    alarmProvider.toggleAlarm(entry.value.id),
-                                onDelete: () => _deleteAlarm(
-                                    context, alarmProvider, entry.value),
-                                onEdit: () => _editAlarm(
-                                    context, alarmProvider, entry.value),
-                              ),
-                            )),
+                        ...alarms
+                            .asMap()
+                            .entries
+                            .map((entry) => StaggeredReveal(
+                                  index: entry.key,
+                                  child: _AlarmTile(
+                                    alarm: entry.value,
+                                    onToggle: () => alarmProvider
+                                        .toggleAlarm(entry.value.id),
+                                    onDelete: () => _deleteAlarm(
+                                        context, alarmProvider, entry.value),
+                                    onEdit: () => _editAlarm(
+                                        context, alarmProvider, entry.value),
+                                  ),
+                                )),
                       ],
 
                       const SizedBox(height: AppSpace.xxl),
@@ -144,6 +147,8 @@ class AlarmScreen extends StatelessWidget {
     if (!context.mounted) return;
     final label = await _showLabelDialog(context, '');
     if (!context.mounted) return;
+    final mission = await _pickMission(context, AlarmMission.gentleWake);
+    if (!context.mounted) return;
 
     final alarm = AlarmModel(
       id: '${result.hour}_${result.minute}_${DateTime.now().millisecondsSinceEpoch}',
@@ -151,6 +156,7 @@ class AlarmScreen extends StatelessWidget {
       minute: result.minute,
       label: label ?? '',
       isEnabled: true,
+      mission: mission,
     );
     await provider.addAlarm(alarm);
   }
@@ -186,13 +192,42 @@ class AlarmScreen extends StatelessWidget {
 
     final label = await _showLabelDialog(context, alarm.label);
     if (!context.mounted) return;
+    final mission = await _pickMission(context, alarm.mission);
+    if (!context.mounted) return;
 
     await provider.updateAlarm(alarm.copyWith(
       hour: result.hour,
       minute: result.minute,
       label: label ?? alarm.label,
+      mission: mission,
     ));
   }
+
+  Future<AlarmMission> _pickMission(
+          BuildContext context, AlarmMission initial) async =>
+      await showModalBottomSheet<AlarmMission>(
+        context: context,
+        backgroundColor: AppColors.black,
+        builder: (ctx) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: AlarmMission.values
+                    .map((mission) => ListTile(
+                          title: Text(mission.name
+                              .replaceAll(RegExp(r'([A-Z])'), r' $1')
+                              .toUpperCase()),
+                          trailing: mission == initial
+                              ? const Icon(Symbols.check)
+                              : null,
+                          onTap: () => Navigator.pop(ctx, mission),
+                        ))
+                    .toList()),
+          ),
+        ),
+      ) ??
+      initial;
 
   Future<String?> _showLabelDialog(BuildContext context, String initial) async {
     final controller = TextEditingController(text: initial);
@@ -205,7 +240,8 @@ class AlarmScreen extends StatelessWidget {
           borderRadius: BorderRadius.zero,
           side: const BorderSide(color: AppColors.white20),
         ),
-        title: Text('LABEL', style: AppTextStyles.labelLG(color: AppColors.white90)),
+        title: Text('LABEL',
+            style: AppTextStyles.labelLG(color: AppColors.white90)),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -284,9 +320,7 @@ class _AlarmTile extends StatelessWidget {
                         style: const TextStyle(fontFamily: 'Manrope').copyWith(
                           fontSize: 38,
                           fontWeight: FontWeight.w700,
-                          color: active
-                              ? AppColors.white90
-                              : AppColors.white20,
+                          color: active ? AppColors.white90 : AppColors.white20,
                           height: 1.0,
                           letterSpacing: -1,
                         ),
@@ -354,4 +388,3 @@ class _AlarmTile extends StatelessWidget {
     );
   }
 }
-

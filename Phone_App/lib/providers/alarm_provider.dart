@@ -48,19 +48,33 @@ class AlarmProvider extends ChangeNotifier {
     _isAlarmFiring = true;
 
     if (alarm.kind == AlarmKind.smoke) {
-      _activityLog.addAlarm('Smoke alarm', alarm.label.isEmpty ? 'Smoke threshold crossed' : alarm.label);
+      _activityLog.addAlarm('Smoke alarm',
+          alarm.label.isEmpty ? 'Smoke threshold crossed' : alarm.label);
       _alarmService.startAudioLoop();
       _activateSmokeLighting();
     } else {
-      _activityLog.addAlarm('Scheduled alarm', alarm.label.isEmpty ? alarm.timeString : alarm.label);
+      _activityLog.addAlarm('Scheduled alarm',
+          alarm.label.isEmpty ? alarm.timeString : alarm.label);
 
       // Turn on ESP32 LED strip (relay 2 = RGB) and backup flashlight at
       // full brightness once — the flashing look itself is rendered
       // locally by AlarmOverlay's pulse/ring animation, not by toggling
       // the relays repeatedly.
-      _deviceProvider.setRgb(true);
-      _deviceProvider.setRgbBrightness(255);
-      _deviceProvider.setBackupBrightness(255);
+      final sceneId = switch (alarm.mission) {
+        AlarmMission.gentleWake => 'sleep',
+        AlarmMission.focusStart => 'focus',
+        AlarmMission.roomOnly => '',
+      };
+      final scene = _deviceProvider.roomFeatures.scenes
+          .where((item) => item.id == sceneId)
+          .firstOrNull;
+      if (scene != null) {
+        _deviceProvider.applyScene(scene, source: 'Alarm mission');
+      } else {
+        _deviceProvider.setRgb(true);
+        _deviceProvider.setRgbBrightness(255);
+        _deviceProvider.setBackupBrightness(255);
+      }
       HapticFeedback.vibrate();
     }
 

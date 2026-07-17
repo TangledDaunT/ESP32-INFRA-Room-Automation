@@ -3,6 +3,8 @@ import 'dart:convert';
 
 enum AlarmKind { scheduled, smoke }
 
+enum AlarmMission { gentleWake, focusStart, roomOnly }
+
 /// Immutable alarm definition.
 class AlarmModel {
   final String id;
@@ -11,6 +13,7 @@ class AlarmModel {
   final String label;
   final bool isEnabled;
   final AlarmKind kind;
+  final AlarmMission mission;
 
   const AlarmModel({
     required this.id,
@@ -19,6 +22,7 @@ class AlarmModel {
     this.label = '',
     this.isEnabled = true,
     this.kind = AlarmKind.scheduled,
+    this.mission = AlarmMission.gentleWake,
   });
 
   AlarmModel copyWith({
@@ -28,6 +32,7 @@ class AlarmModel {
     String? label,
     bool? isEnabled,
     AlarmKind? kind,
+    AlarmMission? mission,
   }) {
     return AlarmModel(
       id: id ?? this.id,
@@ -36,6 +41,7 @@ class AlarmModel {
       label: label ?? this.label,
       isEnabled: isEnabled ?? this.isEnabled,
       kind: kind ?? this.kind,
+      mission: mission ?? this.mission,
     );
   }
 
@@ -46,6 +52,7 @@ class AlarmModel {
         'label': label,
         'isEnabled': isEnabled,
         'kind': kind.name,
+        'mission': mission.name,
       };
 
   factory AlarmModel.fromJson(Map<String, dynamic> json) => AlarmModel(
@@ -55,8 +62,16 @@ class AlarmModel {
         label: (json['label'] as String?) ?? '',
         isEnabled: (json['isEnabled'] as bool?) ?? true,
         kind: AlarmKind.values.firstWhere(
-          (value) => value.name == (json['kind'] as String? ?? AlarmKind.scheduled.name),
+          (value) =>
+              value.name ==
+              (json['kind'] as String? ?? AlarmKind.scheduled.name),
           orElse: () => AlarmKind.scheduled,
+        ),
+        mission: AlarmMission.values.firstWhere(
+          (value) =>
+              value.name ==
+              (json['mission'] as String? ?? AlarmMission.gentleWake.name),
+          orElse: () => AlarmMission.gentleWake,
         ),
       );
 
@@ -69,10 +84,7 @@ class AlarmModel {
 
   static List<AlarmModel> decodeList(String json) {
     final list = jsonDecode(json) as List<dynamic>;
-    return list
-        .cast<Map<String, dynamic>>()
-        .map(AlarmModel.fromJson)
-        .toList();
+    return list.cast<Map<String, dynamic>>().map(AlarmModel.fromJson).toList();
   }
 
   static String encodeList(List<AlarmModel> alarms) =>
