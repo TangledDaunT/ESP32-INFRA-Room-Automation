@@ -1,5 +1,6 @@
 // lib/providers/device_provider.dart
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart'
@@ -16,6 +17,9 @@ import '../services/spotify_service.dart';
 import '../models/spotify_track.dart';
 import '../services/wakeup_service.dart';
 import '../services/motion_detector.dart';
+import '../services/room_feature_service.dart';
+import '../models/room_features.dart';
+import '../services/mac_service.dart';
 
 class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
   late final OpenClawService _openclaw;
@@ -25,6 +29,7 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
   late final SpotifyService _spotify;
   late final MotionDetector _motion;
   final ActivityLogService _activityLog;
+  final RoomFeatureService _roomFeatures;
   AlarmService? _alarmService;
 
   VoidCallback? onSmokeAlarmDetected;
@@ -35,6 +40,9 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
   // PWM ramp for clap-triggered RGB
   Timer? _rampTimer;
   Timer? _clapIndicatorTimer;
+  Timer? _ambientTimer;
+  AmbientProfile? _ambientProfile;
+  int _ambientTick = 0;
   bool _showClapIndicator = false;
   bool _smokeAlarmLatched = false;
   bool _clapDetectorHealthy = true;
@@ -42,6 +50,7 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
   DeviceProvider(
     this._settings,
     this._activityLog,
+    this._roomFeatures,
   ) {
     _openclaw = OpenClawService(_settings);
     _clap = ClapDetector(
@@ -75,6 +84,8 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
   SpotifyTrack? get currentTrack => _spotify.currentTrack;
   bool get motionDetectActive => _state.motionDetectActive;
   MotionDetector get motionDetector => _motion;
+  RoomFeatureService get roomFeatures => _roomFeatures;
+  AmbientProfile? get ambientProfile => _ambientProfile;
 
   void _setupCallbacks() {
     // ── OpenClaw state sync ────────────────────────────
@@ -384,7 +395,72 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
       presence: _state.presenceDetected,
       anyLightOn: _state.anyLightOn,
     );
+    _recordAndEvaluateFeatures();
   }
+
+  void _recordAndEvaluateFeatures() {
+    final active = [_state.lightOn, _state.fanOn, _state.socketOn, _state.rgbOn]
+        .where((on) => on).length;
+    unawaited(_roomFeatures.record(RoomTelemetry(DateTime.now(), _state.luxValue,
+        _state.smokeValue, _state.presenceDetected, active)));
+    final now = DateTime.now();
+    for (final rule in _roomFeatures.rules) {
+      if (!rule.canRun(now)) continue;
+      final met = switch (rule.trigger) {
+        RuleTrigger.lowLux => _state.luxValue <= rule.value,
+        RuleTrigger.presence => _state.presenceDetected,
+        RuleTrigger.smoke => _state.smokeValue >= rule.value,
+        RuleTrigger.time => now.hour * 60 + now.minute == rule.value.round(),
+        RuleTrigger.macFocus => false,
+      };
+      if (met) {
+        final scene = _roomFeatures.scenes.where((s) => s.id == rule.sceneId).firstOrNull;
+        if (scene != null) {
+          applyScene(scene, source: 'Automation: ${rule.name}');
+          unawaited(_roomFeatures.markRun(rule.id));
+        }
+      }
+    }
+  }
+
+  Future<void> applyScene(RoomScene scene, {String source = 'Scene'}) async {
+    setFan(scene.fan); setLight(scene.light); setSocket(scene.socket); setRgb(scene.rgb);
+    setBackupBrightness(scene.backupBrightness);
+    if (scene.fadeMs > 0) {
+      setRgbBrightnessFast(scene.rgbBrightness, duration: scene.fadeMs);
+      _updateState(_state.copyWith(rgbBrightness: scene.rgbBrightness));
+    } else { setRgbBrightness(scene.rgbBrightness); }
+    setAmbientProfile(scene.ambientProfile);
+    if (scene.macFocus) {
+      final result = await MacService(_settings.macAgentBaseUrl).open('vscode');
+      _activityLog.addAutomation('Mac focus', result.success ? 'VS Code opened' : 'Mac agent unavailable');
+    }
+    _activityLog.addAutomation(source, '${scene.name} applied');
+  }
+
+  Future<void> emergencyAllOff() async {
+    _rampTimer?.cancel(); setAmbientProfile(null);
+    _updateState(_state.copyWith(fanOn: false, lightOn: false, socketOn: false, rgbOn: false, rgbBrightness: 0, backupBrightness: 0));
+    await _openclaw.setAllOff();
+    _activityLog.addSystem('Emergency all off', 'All room outputs disabled');
+  }
+
+  void setAmbientProfile(AmbientProfile? profile) {
+    _ambientTimer?.cancel(); _ambientProfile = profile; _ambientTick = 0;
+    if (profile != null) {
+      _ambientTimer = Timer.periodic(const Duration(milliseconds: 350), (_) {
+        _ambientTick++;
+        final phase = (_ambientTick % 18) / 18.0;
+        final base = switch (profile) { AmbientProfile.fireplace => 55, AmbientProfile.focus => 85, AmbientProfile.sunrise => 25, _ => 90 };
+        final amplitude = switch (profile) { AmbientProfile.pulse => 120, AmbientProfile.aurora => 75, AmbientProfile.fireplace => 35, AmbientProfile.sunrise => 120, AmbientProfile.focus => 15 };
+        final value = (base + amplitude * (0.5 + 0.5 * __sin(phase * 6.28318))).round().clamp(1, 255);
+        setRgbBrightnessFast(value);
+      });
+    }
+    notifyListeners();
+  }
+
+  double __sin(double x) => math.sin(x);
 
   // ── Clap Automation ───────────────────────────────────
 
@@ -541,6 +617,7 @@ class DeviceProvider extends ChangeNotifier with WidgetsBindingObserver {
     _wakeup.dispose();
     _spotify.dispose();
     _motion.dispose();
+    _ambientTimer?.cancel();
     _rampTimer?.cancel();
     _clapIndicatorTimer?.cancel();
     super.dispose();

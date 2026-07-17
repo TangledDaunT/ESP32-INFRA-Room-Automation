@@ -11,6 +11,7 @@ import 'providers/device_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/activity_log_service.dart';
 import 'services/alarm_service.dart';
+import 'services/room_feature_service.dart';
 import 'screens/alarm_screen.dart';
 import 'screens/activity_log_screen.dart';
 import 'screens/control_pages_screen.dart';
@@ -40,6 +41,8 @@ void main() async {
 
   final activityLog = ActivityLogService(settingsProvider.settings);
   await activityLog.load();
+  final roomFeatures = RoomFeatureService();
+  await roomFeatures.load();
 
   // Load alarms before app starts
   final alarmService = AlarmService();
@@ -52,12 +55,14 @@ void main() async {
       providers: [
         ChangeNotifierProvider.value(value: settingsProvider),
         ChangeNotifierProvider.value(value: activityLog),
+        ChangeNotifierProvider.value(value: roomFeatures),
         Provider.value(value: alarmService),
         ChangeNotifierProvider(
           create: (_) {
             final deviceProvider = DeviceProvider(
               settingsProvider.settings,
               activityLog,
+              roomFeatures,
             );
             deviceProvider.setAlarmService(alarmService);
             return deviceProvider;
