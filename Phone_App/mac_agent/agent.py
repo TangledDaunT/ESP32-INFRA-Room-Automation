@@ -20,6 +20,7 @@ from pydantic import BaseModel
 import psutil
 
 
+#refactoring of code to be true
 @dataclass(frozen=True)
 class TargetConfig:
     app_name: str
