@@ -217,6 +217,20 @@ def _find_wifi_device() -> str | None:
     return _WIFI_DEVICE
 
 
+def _wifi_ssid() -> str | None:
+    device = _find_wifi_device()
+    if not device:
+        return None
+
+    result = _run(["networksetup", "-getairportnetwork", device])
+    if result.returncode != 0:
+        return None
+
+    text = result.stdout.strip()
+    if ": " not in text:
+        return None
+    return text.split(": ", 1)[1].strip() or None
+
 
 def _capture_status() -> SystemStatus:
     _prime_psutil()
